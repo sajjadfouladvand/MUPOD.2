@@ -11,11 +11,16 @@ parser = argparse.ArgumentParser()
 
 # TRVNORM files
 parser.add_argument("--dim_diags_file", type=str, default='trvnorm_data/dim_diagnoses_trvnorm.csv')    
+parser.add_argument("--dim_procs_ccs_file", type=str, default='trvnorm_data/dim_proceduresCCS_trvnorm.csv')    
+
 parser.add_argument("--distinct_diagcd_file", type=str, default='trvnorm_data/distinct_diagcd_trvnorm.csv')
 parser.add_argument("--distinct_tcgpid_file", type=str, default='trvnorm_data/distinct_tcgpid_trvnorm.csv')    
 
 parser.add_argument("--tcgpi_num_digits", type=int, default=2)    
 parser.add_argument("--fold_name", type=str, default='train')    
+
+
+  
 
 if  parser.parse_args().fold_name == "train":
        parser.add_argument("--meds_file", type=str, default='outputs/train_medications.csv')    
@@ -28,6 +33,7 @@ if  parser.parse_args().fold_name == "train":
                                    , args.procs_file
                                    , args.demogs_file
                                    , args.dim_diags_file
+                                   , args.dim_procs_ccs_file
                                    , args.distinct_tcgpid_file
                                    , args.tcgpi_num_digits
                                    , args.fold_name
@@ -43,6 +49,7 @@ elif parser.parse_args().fold_name == "validation":
                                    , args.procs_file
                                    , args.demogs_file
                                    , args.dim_diags_file
+                                   , args.dim_procs_ccs_file
                                    , args.distinct_tcgpid_file
                                    , args.tcgpi_num_digits
                                    , args.fold_name
@@ -58,6 +65,7 @@ elif parser.parse_args().fold_name == "test":
                                    , args.procs_file
                                    , args.demogs_file
                                    , args.dim_diags_file
+                                   , args.dim_procs_ccs_file
                                    , args.distinct_tcgpid_file
                                    , args.tcgpi_num_digits
                                    , args.fold_name

@@ -174,7 +174,7 @@ def filter_patients_positives(meds_path
                                                                                                             , current_patinet_diagnoses_date
                                                                                                             , prediction_win_size)
             # if  current_patinet_num_opioid_prescs > current_patinet_metadata[0]+1 or current_patinet_num_opioid_prescs < current_patinet_metadata[0]-1:
-                # pdb.set_trace()
+            # pdb.set_trace()
             if current_patinet_num_opioid_prescs >= min_num_opioid and  current_patinet_num_month_available >= min_month_available:
                 elig_medications_file.write(','.join(map(repr,line_med)))   
                 elig_medications_file.write('\n')
