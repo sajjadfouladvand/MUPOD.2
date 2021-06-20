@@ -10,7 +10,6 @@ def create_stationary_meds(line_med,
                             distinct_tcgpid_2digit_dict
                             , tcgpi_num_digits
                             ):
-    pdb.set_trace()
     line_med_splitted = [list(y) for x, y in itertools.groupby(line_med[1:], lambda z: z == 'EOV') if not x]            
     for i in range(len(line_med_splitted)):
         # if line_med_splitted[i][0]
@@ -22,29 +21,38 @@ def create_stationary_meds(line_med,
             else:
                 pdb.set_trace()   
                 print('test') 
-    distinct_tcgpid_2digit_dict_sorted = dict(collections.OrderedDict(sorted(distinct_tcgpid_2digit_dict.items())))
-    # multi_hot_med = list(distinct_tcgpid_2digit_dict_sorted.values())
-    # pdb.set_trace()
+    distinct_tcgpid_2digit_dict_sorted = dict(collections.OrderedDict(sorted(distinct_tcgpid_2digit_dict.items())))    
+    num_records = len(line_med_splitted)
+    if(num_records != 0):
+        distinct_tcgpid_2digit_dict_sorted = {k: np.round(v / num_records, 3) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}
     return distinct_tcgpid_2digit_dict_sorted
 
 def create_stationary_diags(line_diag
                             , icd_to_ccs_dict
                             , ccs_distinct_dict
                             ):
+
     line_diag_splitted = [list(y) for x, y in itertools.groupby(line_diag[1:], lambda z: z == 'EOV') if not x]            
     for i in range(len(line_diag_splitted)):
         for j in range(1, len(line_diag_splitted[i])): 
             if line_diag_splitted[i][j].replace("'","") == 'NOCODE' or line_diag_splitted[i][j].replace("'","")[:3] == 'EOV':
                 # pdb.set_trace()
                 continue
+            elif line_diag_splitted[i][j].replace("'","") not in icd_to_ccs_dict:
+                # pdb.set_trace()
+                ccs_distinct_dict[-math.inf] +=1
+            elif math.isnan(icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0]):
+                ccs_distinct_dict[-math.inf] +=1                
             elif icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0] in ccs_distinct_dict:
                 ccs_distinct_dict[icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0]] +=1
             else:
                 pdb.set_trace()   
                 pirnt('warning') 
     ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(ccs_distinct_dict.items())))
-    # multi_hot_ccs = list(ccs_distinct_dict_sorted.values())
-    # pdb.set_trace()
+
+    num_records = len(line_diag_splitted)
+    if(num_records != 0):
+        ccs_distinct_dict_sorted = {k: np.round(v / num_records, 3) for k, v in ccs_distinct_dict_sorted.items()}
     return ccs_distinct_dict_sorted
 
 def create_stationary_procs(line_proc
@@ -72,8 +80,10 @@ def create_stationary_procs(line_proc
                 pdb.set_trace()  
                 print('warning')  
     proc_ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(proc_ccs_distinct_dict.items())))
-    # multi_hot_ccs = list(ccs_distinct_dict_sorted.values())
-    # pdb.set_trace()
+
+    num_records = len(line_proc_splitted)
+    if(num_records != 0):
+        proc_ccs_distinct_dict_sorted = {k: np.round(v / num_records, 3) for k, v in proc_ccs_distinct_dict_sorted.items()}
     return proc_ccs_distinct_dict_sorted         
 
 # def diagnoses_embeding(line_diag, ccd_dict):
@@ -93,6 +103,7 @@ def create_stationary(meds_file
     # pdb.set_trace()
     dob_idx = 1
     sex_idx = 2
+    label_idx = 6
     # Min date of birth in TRVNORM is 1889 
     # Max date of birth in TRVNORM is 2018
     max_age = 130
@@ -113,7 +124,8 @@ def create_stationary(meds_file
     ccs_distinct_dict = {}
     for i in range(len(ccs_distinct)):
         ccs_distinct_dict[ccs_distinct[i]] = 0 
-
+    ccs_distinct_dict[-math.inf] = 0
+    
     icd_to_ccs = dim_diags[['DIAG_CD', 'CCS_CATGRY']]  
     icd_to_ccs_dict =  icd_to_ccs.set_index('DIAG_CD').T.to_dict('list') 
 
@@ -128,10 +140,10 @@ def create_stationary(meds_file
         stationary_file.write('ENROLID, '+(','.join(map(repr, sorted(distinct_tcgpid_digits)))))
         stationary_file.write(',')
 
-        stationary_file.write(','.join(map(repr, sorted(ccs_distinct))))
+        stationary_file.write(','.join(map(repr, sorted(ccs_distinct_dict.keys()))))
         stationary_file.write(',')   
 
-        stationary_file.write(','.join(map(repr, sorted(proc_ccs_distinct))))
+        stationary_file.write(','.join(map(repr, sorted(proc_ccs_distinct_dict.keys()))))
         stationary_file.write(',')  
 
         stationary_file.write('Age')  
@@ -150,7 +162,7 @@ def create_stationary(meds_file
             line_proc = procs_filename.readline()
             line_proc = line_proc.split(',')
 
-            line_demog = demogs_filename.readline()
+            line_demog = demogs_filename.readline().rstrip('\n')
             line_demog = line_demog.split(',')            
         
             # pdb.set_trace()
@@ -159,7 +171,11 @@ def create_stationary(meds_file
             if not(int(line_med[0]) == int(line_diag[0]) == int(line_proc[0]) == int(line_demog[0])):
                 pdb.set_trace()
                 print('Warning: the streams do nott match')
-            pdb.set_trace()
+
+            distinct_tcgpid_digits_dict = dict.fromkeys(distinct_tcgpid_digits_dict, 0)    
+            ccs_distinct_dict = dict.fromkeys(ccs_distinct_dict, 0)    
+            proc_ccs_distinct_dict = dict.fromkeys(proc_ccs_distinct_dict, 0)    
+
             multi_hot_meds_dict = create_stationary_meds(line_med, distinct_tcgpid_digits_dict, tcgpi_num_digits)
             multi_hot_diags_dict = create_stationary_diags(line_diag, icd_to_ccs_dict, ccs_distinct_dict)
             multi_hot_procs_dict = create_stationary_procs(line_proc, proc_cd_to_ccs_dict, proc_ccs_distinct_dict)
@@ -174,6 +190,8 @@ def create_stationary(meds_file
             stationary_file.write(str(current_patient_age))
             stationary_file.write(',')
             stationary_file.write(str(current_patient_sex))
+            stationary_file.write(',')
+            stationary_file.write(str(line_demog[label_idx]))
             stationary_file.write('\n')            
 
 

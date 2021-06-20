@@ -70,7 +70,7 @@ def cohort_matching( demogs_oud_yes_path
             similarities = cdist(np.reshape(row[match_based_on].values, (1,len(match_based_on))), np.reshape(oud_no_data_filtered_sex[match_based_on].values, (-1,len(match_based_on))), metric='cosine')
             matched_negs = oud_no_data_filtered_sex.iloc[similarities[0].argsort()[:pos_to_negs_ratio]]
             demogs_oud_no.loc[demogs_oud_no['ENROLID'].isin(matched_negs['ENROLID'].values),'MATCHED'] = 1
-    demogs_oud_no[demogs_oud_no['MATCHED']==1].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)
+    demogs_oud_no[demogs_oud_no['MATCHED']==1].loc[:, demogs_oud_no.columns != 'MATCHED'].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)
     return 1
 
 def blind_data(line_meds_splitted
@@ -255,6 +255,7 @@ def split_train_validation_test(meds_oud_yes_path
             line_demogs_splitted = line_demogs.split(',')
             line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
             line_demogs_splitted.append('0')
+            # pdb.set_trace()
             if not(int(line_demogs_splitted[enrolid_ind]) == int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
