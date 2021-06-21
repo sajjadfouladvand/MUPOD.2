@@ -32,5 +32,6 @@ python 5_main_create_stationary_data.py --fold_name test
 ```
 After creating the stationary data, you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. 
 ```
-
+6_main_classical_ml_models.py 
 ```
+The results will be stored under ```/results/classical_ml_models```.
