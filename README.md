@@ -7,3 +7,8 @@ Run the follwoing script for both OUD-positive and OUD-negative to convert the d
 python 2_main_extract_streams.py --cohort oud_yes
 python 2_main_extract_streams.py --cohort oud_no
 ```
+Run the follwoing scripts to filter patients based on: 1) Minimum number of months that the patinet has been in the data. The argument to tune this is ```min_month_available``` and the default value is is 12, 2) Minimum number of months that the patinet has been prescribed with at least one Opioid medication (other than Buprenorphine or Methadone). The argument to set this is ```min_num_opioid``` and the default value is 3, 3)Prediction window size. The argument value to tune this feature is prediction_win_size and the default value is 6.
+```
+3_main_filter_patients.py --cohort oud_no
+3_main_filter_patients.py --cohort oud_yes
+```
