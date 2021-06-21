@@ -17,10 +17,17 @@ Follwoing command performs multiple tasks: 1) It first apply a cohort matching. 
 python 4_main_match_and_split.py 
 ```
 Here is a list of argument that can be used to apply different constrains:
+
 ``` train_ratio```: This can be used to define what portion of the data you prefer to use in the train set. The default value is 80%.
 
 ```matched```: If  ```matched=1``` then the matched negative cohort will be used to create train, validation and test. 
 
 ```prediction_win_size```: set the prediction window size. The default value is 6 months. For the OUD-positive patinets, all the data within a window of 6 month prior to the diagnoses date is erased. For the OUD-negative cohort, all the data within a window of 6 month prior to the patient's last record in the data will eb erased.
 
+Run the following commands to create stationary train, validation and test data. Argument ```fold_name``` can be used to produce train, validation and test data seperately:
+```
+python 5_main_create_stationary_data.py --fold_name train
+python 5_main_create_stationary_data.py --fold_name validation
+python 5_main_create_stationary_data.py --fold_name test
+```
 
