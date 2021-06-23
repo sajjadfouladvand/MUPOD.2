@@ -1,4 +1,5 @@
-<h3>1. Pre-processing</h3>
+<h1 style="font-size:60px;">Preprocessing</h1>
+
 Place the prescriptions, diagnoses, procedures and demographics data for both OUD-positive and OUD-negative cohorts under the "data" folder. Run the following script to sort the patients records (prescriptions, diagnoses and procedures) based on patient's ID:
 ```
 python 1_sort_records.py
