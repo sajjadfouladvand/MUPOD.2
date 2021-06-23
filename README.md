@@ -1,3 +1,4 @@
+<h3>1. Pre-processing</h3>
 Place the prescriptions, diagnoses, procedures and demographics data for both OUD-positive and OUD-negative cohorts under the "data" folder. Run the following script to sort the patients records (prescriptions, diagnoses and procedures) based on patient's ID:
 ```
 python 1_sort_records.py
@@ -34,4 +35,4 @@ After creating the stationary data, you can run the follwoing command to train, 
 ```
 6_main_classical_ml_models.py 
 ```
-The results will be stored under ```/results/classical_ml_models```.
+The results will be stored under ```/results/classical_ml_models```. 
