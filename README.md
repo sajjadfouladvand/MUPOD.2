@@ -1,4 +1,4 @@
-<h1 style="font-size:60px;">Preprocessing</h1>
+<h1 style="font-size:60px;">1. Preprocessing</h1>
 
 Place the prescriptions, diagnoses, procedures and demographics data for both OUD-positive and OUD-negative cohorts under the "data" folder. Run the following script to sort the patients records (prescriptions, diagnoses and procedures) based on patient's ID:
 ```
@@ -25,7 +25,7 @@ Here is a list of argument that can be used to apply different constrains:
 ```matched```: If  ```matched=1``` then the matched negative cohort will be used to create train, validation and test. 
 
 ```prediction_win_size```: set the prediction window size. The default value is 6 months. For the OUD-positive patinets, all the data within a window of 6 month prior to the diagnoses date is erased. For the OUD-negative cohort, all the data within a window of 6 month prior to the patient's last record in the data will eb erased.
-<h1 style="font-size:60px;">Classical Machine Learning Models</h1>
+<h1 style="font-size:60px;">2. Classical Machine Learning Models</h1>
 Run the following commands to create stationary train, validation and test data. Argument ```fold_name``` can be used to produce train, validation and test data seperately:
 ```
 python 5_main_create_stationary_data.py --fold_name train
