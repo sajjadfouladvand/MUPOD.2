@@ -37,3 +37,7 @@ After creating the stationary data, you can run the follwoing command to train, 
 6_main_classical_ml_models.py 
 ```
 The results will be stored under ```/results/classical_ml_models```. 
+<h1 style="font-size:60px;">3. Long Short Term Memory and Transformer</h1>
+
+<h1 style="font-size:60px;">4. MUPOD</h1>
+
