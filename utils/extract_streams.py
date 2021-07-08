@@ -48,9 +48,9 @@ def extract_medications(meds_rawdata_filename
         meds_header = next(meds_raw_file)        
         
         #=== Reading first line of medications 
-        line_med = meds_raw_file.readline().replace("'",'')
+        line_med = meds_raw_file.readline().replace("'",'').rstrip('\n\\n\r\\r')
         while line_med.split(',')[enrolid_idx] ==  'NULL' or line_med.split(',')[enrolid_idx] ==  '':
-            line_med = meds_raw_file.readline().replace("'",'')
+            line_med = meds_raw_file.readline().replace("'",'').rstrip('\n\\n\r\\r')
         line_med = line_med.split(',')
         # pdb.set_trace()
         #==== While not end of the medication file
@@ -65,7 +65,7 @@ def extract_medications(meds_rawdata_filename
             current_patient_meds = []
             while current_enrolid_med == int(line_med[enrolid_idx]):
                 current_patient_meds.append(line_med)
-                line_med = meds_raw_file.readline().replace("'",'')
+                line_med = meds_raw_file.readline().replace("'",'').rstrip('\n\\n\r\\r')
                 line_counter+=1
                 if line_counter%display_step==0:
                     print('Finished processing {} medication records out of {} records.'.format(line_counter,total_num_records))
@@ -74,7 +74,7 @@ def extract_medications(meds_rawdata_filename
                     break
                 line_med = line_med.split(',')
                 while line_med[enrolid_idx] == 'NULL':
-                    line_med = meds_raw_file.readline().replace("'",'')
+                    line_med = meds_raw_file.readline().replace("'",'').rstrip('\n\\n\r\\r')
                     line_counter+=1
                     if line_counter%display_step==0:
                         print('Finished processing {} medication records out of {} records.'.format(line_counter,total_num_records))
@@ -141,9 +141,9 @@ def extract_diagnoses(diags_rawdata_filename, cohort, display_step):
         diags_header = next(diags_raw_file)        
         
         #=== Reading first line of diagnoses 
-        line_diag = diags_raw_file.readline().replace('\n','').replace("'","")
+        line_diag = diags_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
         while line_diag.split(',')[enrolid_idx] ==  'NULL' or line_diag.split(',')[enrolid_idx] ==  '':
-            line_diag = diags_raw_file.readline().replace('\n','').replace("'","")
+            line_diag = diags_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
         line_diag = line_diag.split(',')
 
         #==== While not end of the diagnoses file
@@ -160,7 +160,7 @@ def extract_diagnoses(diags_rawdata_filename, cohort, display_step):
 
             while current_enrolid_diag == int(line_diag[enrolid_idx]):
                 current_patient_diags.append(line_diag)
-                line_diag = diags_raw_file.readline().replace('\n','').replace("'","")
+                line_diag = diags_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
                 line_counter+=1
                 if line_counter%display_step==0:
                     print('Finished processing {} diagnoses records out of {} records.'.format(line_counter,total_num_records))                
@@ -169,7 +169,7 @@ def extract_diagnoses(diags_rawdata_filename, cohort, display_step):
                     break
                 line_diag = line_diag.split(',')
                 while line_diag[enrolid_idx] == 'NULL':
-                    line_diag = diags_raw_file.readline()
+                    line_diag = diags_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
                     line_counter+=1
                     if line_counter%display_step==0:
                         print('Finished processing {} diagnoses records out of {} records.'.format(line_counter,total_num_records))                    
@@ -234,9 +234,9 @@ def extract_procedures(procs_rawdata_filename, cohort, display_step):
     with open(procs_rawdata_filename) as procs_raw_file, open('outputs/'+cohort+'_procedures.csv', 'w') as procedures_file:
         procs_header = next(procs_raw_file)        
         #=== Reading first line of procedures 
-        line_proc = procs_raw_file.readline().replace('\n','').replace("'","")
+        line_proc = procs_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
         while line_proc.split(',')[enrolid_idx] ==  'NULL' or line_proc.split(',')[enrolid_idx] ==  '':
-            line_proc = procs_raw_file.readline().replace('\n','').replace("'","")
+            line_proc = procs_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
         line_proc = line_proc.split(',')
 
         #==== While not end of the procedures file
@@ -252,7 +252,7 @@ def extract_procedures(procs_rawdata_filename, cohort, display_step):
             current_patient_procs = []
             while current_enrolid_proc == int(line_proc[enrolid_idx]):
                 current_patient_procs.append(line_proc)
-                line_proc = procs_raw_file.readline().replace('\n','').replace("'","")
+                line_proc = procs_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
                 line_counter+=1
                 if line_counter%display_step==0:
                     print('Finished processing {} procedures records out of {} records.'.format(line_counter,total_num_records))                
@@ -261,7 +261,7 @@ def extract_procedures(procs_rawdata_filename, cohort, display_step):
                     break
                 line_proc = line_proc.split(',')
                 while line_proc[enrolid_idx] == 'NULL':
-                    line_proc = procs_raw_file.readline()
+                    line_proc = procs_raw_file.readline().replace('\n','').replace("'","").rstrip('\n\\n\r\\r')
                     line_counter+=1
                     if line_counter%display_step==0:
                         print('Finished processing {} procedures records out of {} records.'.format(line_counter,total_num_records))                    

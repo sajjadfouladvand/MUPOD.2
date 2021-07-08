@@ -239,6 +239,7 @@ def split_train_validation_test(meds_oud_yes_path
     with open(meds_oud_no_path) as medications_oud_no_file, open(diags_oud_no_path) as diagnoses_oud_no_file, open(procs_oud_no_path) as procedures_oud_no_file, open(demogs_oud_no_path) as demographics_oud_no_file, open('outputs/train_medications.csv', 'a') as train_meds_file, open('outputs/train_diagnoses.csv', 'a') as train_diags_file, open('outputs/train_procedures.csv', 'a') as train_procs_file, open('outputs/train_demographics.csv', 'a') as train_demogs_file, open('outputs/train_labels.csv','a') as train_labels_file, open('outputs/validation_medications.csv', 'a') as valid_meds_file, open('outputs/validation_diagnoses.csv', 'a') as valid_diags_file, open('outputs/validation_procedures.csv', 'a') as valid_procs_file, open('outputs/validation_demographics.csv', 'a') as valid_demogs_file, open('outputs/validation_labels.csv','a') as valid_labels_file, open('outputs/test_medications.csv', 'a') as test_meds_file, open('outputs/test_diagnoses.csv', 'a') as test_diags_file, open('outputs/test_procedures.csv', 'a') as test_procs_file, open('outputs/test_demographics.csv', 'a') as test_demogs_file, open('outputs/test_labels.csv','a') as test_labels_file:
         demogs_oud_no_header = next(demographics_oud_no_file)
         # pdb.set_trace()
+        demog_read_flag = True
         for line_meds in medications_oud_no_file:
             line_meds_splitted = line_meds.split(',')
             line_meds_splitted = [i.replace("'","") for i in line_meds_splitted]
@@ -251,11 +252,21 @@ def split_train_validation_test(meds_oud_yes_path
             line_procs_splitted=line_procs.split(',')
             line_procs_splitted = [i.replace("'","") for i in line_procs_splitted]
 
-            line_demogs = demographics_oud_no_file.readline().rstrip('\n')   
-            line_demogs_splitted = line_demogs.split(',')
-            line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
-            line_demogs_splitted.append('0')
+            if demog_read_flag == True:
+                line_demogs = demographics_oud_no_file.readline().rstrip('\n')   
+                line_demogs_splitted = line_demogs.split(',')
+                line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
+                line_demogs_splitted.append('0')
             # pdb.set_trace()
+            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+               pdb.set_trace()
+               print("Warning: current streams don't match!")
+            if (int(line_meds_splitted[enrolid_ind].replace("'",'')) < int(line_demogs_splitted[enrolid_ind]) ):
+                # pdb.set_trace()
+                demog_read_flag = False
+                continue
+            else:
+                demog_read_flag = True
             if not(int(line_demogs_splitted[enrolid_ind]) == int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
