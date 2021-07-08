@@ -24,7 +24,7 @@ def check_data_availibility(line_med
     for i in range(len(line_med)):
         sublist = line_med[i]    
         date_diff_to_diag = diff_month(datetime(int(diagnoses_date)//100,int(diagnoses_date)%100, 1 ), datetime(int(sublist[0])//100,int(sublist[0])%100, 1))
-        if any((x[:2] == '65' and x[:8] != '65200010' and x[:8] != '65100050' and x[:8] != '96448248') for x in sublist[1:]) == True and date_diff_to_diag >= prediction_win_size:
+        if any((x[:2] == '65' and x[:8] != '65200010' and x[:8] != '65100050' and x[:8] != '96448248') for x in sublist[1:]) == True and date_diff_to_diag > prediction_win_size:
             num_opioid_prescs +=1
         #if any((x[:2] != '65' and x[:8] != '96448248') for x in sublist[1:]) == True and date_diff_to_diag >= prediction_win_size:    
         #    num_non_opioid_prescs +=1
@@ -174,7 +174,8 @@ def filter_patients_positives(meds_path
                                                                                                             , line_diag_splitted
                                                                                                             , line_proc_splitted
                                                                                                             , current_patinet_diagnoses_date
-                                                                                                            , prediction_win_size)
+                                                                                                            , prediction_win_size
+                                                                                                            )
             # if  current_patinet_num_opioid_prescs > current_patinet_metadata[0]+1 or current_patinet_num_opioid_prescs < current_patinet_metadata[0]-1:
             # pdb.set_trace()
             if current_patinet_num_opioid_prescs >= min_num_opioid and  current_patinet_num_month_available >= min_month_available:
