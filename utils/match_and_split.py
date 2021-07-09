@@ -49,7 +49,7 @@ def cohort_matching( demogs_oud_yes_path
                     , demogs_oud_no_path
                     , pos_to_negs_ratio
                     ):
-
+    # pdb.set_trace()
     match_based_on = ['DOB', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA']
     demogs_oud_yes = pd.read_csv(demogs_oud_yes_path)
     demogs_oud_yes.columns = demogs_oud_yes.columns.str.replace("'",'')
@@ -70,6 +70,7 @@ def cohort_matching( demogs_oud_yes_path
             similarities = cdist(np.reshape(row[match_based_on].values, (1,len(match_based_on))), np.reshape(oud_no_data_filtered_sex[match_based_on].values, (-1,len(match_based_on))), metric='cosine')
             matched_negs = oud_no_data_filtered_sex.iloc[similarities[0].argsort()[:pos_to_negs_ratio]]
             demogs_oud_no.loc[demogs_oud_no['ENROLID'].isin(matched_negs['ENROLID'].values),'MATCHED'] = 1
+    # pdb.set_trace()
     demogs_oud_no[demogs_oud_no['MATCHED']==1].loc[:, demogs_oud_no.columns != 'MATCHED'].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)
     return 1
 
@@ -94,7 +95,7 @@ def blind_data(line_meds_splitted
         diag_or_last_data = int(line_demogs_splitted[date_idx])
         # if line_meds_splitted[i][0] 
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
-        if diff_times >= prediction_win_size:
+        if diff_times > prediction_win_size:
             line_meds_blinded.extend(line_meds_splitted[i])
             line_meds_blinded.extend(['EOV'])
     #  diags        
@@ -103,7 +104,7 @@ def blind_data(line_meds_splitted
         diag_or_last_data = int(line_demogs_splitted[date_idx])
         # if line_meds_splitted[i][0] 
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
-        if diff_times >= prediction_win_size:
+        if diff_times > prediction_win_size:
             line_diags_blinded.extend(line_diags_splitted[i])
             line_diags_blinded.extend(['EOV'])
 
@@ -113,7 +114,7 @@ def blind_data(line_meds_splitted
         diag_or_last_data = int(line_demogs_splitted[date_idx])
         # if line_meds_splitted[i][0] 
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
-        if diff_times >= prediction_win_size:
+        if diff_times > prediction_win_size:
             line_procs_blinded.extend(line_procs_splitted[i])
             line_procs_blinded.extend(['EOV'])
 

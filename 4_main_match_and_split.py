@@ -7,7 +7,6 @@ import utils.match_and_split as mch_splt
 
 sys.path.append(os.getcwd())
 parser = argparse.ArgumentParser()
-matched = 0
 parser.add_argument("--pos_to_negs_ratio", type=int, default=1)    
 parser.add_argument("--train_ratio", type=int, default=0.8)
 parser.add_argument("--validation_ratio", type=int, default=0.1)    

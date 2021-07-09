@@ -6,6 +6,7 @@ import pdb
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 from sklearn.metrics import roc_auc_score
 import csv
@@ -23,7 +24,12 @@ def read_stationary_data(train_data_path
     return train_data_stationary, validation_data_stationary, test_data_stationary
 
 def performance_evaluation(rf_predictions
-                        ,  labels):
+                        , test_data
+                        , best_model):
+
+    # pdb.set_trace()
+    labels = test_data['Label']
+    rf_test_auc=roc_auc_score(test_data['Label'], best_model.predict_proba(test_data.iloc[:,1:-1])[:,1])
     tp=0
     tn=0
     fn=0
@@ -60,7 +66,7 @@ def performance_evaluation(rf_predictions
     else:
         specificity= tn/(tn+fp)    
 
-    return tn, tp, fn, fp, accuracy, precision, recall, specificity, F1    
+    return tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc    
 
 def write_results(tn
                 , tp
@@ -69,9 +75,12 @@ def write_results(tn
                 , accuracy
                 , precision
                 , recall
+                , specificity
                 , F1
+                , rf_test_auc
                 , model
                     ):
+
     with open('results/classical_ml_models/'+model+'_prediction_performance.csv', 'w') as f_results:
         f_results.write("Precision is: ")
         f_results.write(str(precision))
@@ -117,7 +126,7 @@ def random_forest_model(train_data_path
                         , test_data_path
                         ):
 
-    pdb.set_trace()
+    # pdb.set_trace()
     train_data = pd.read_csv(train_data_path)
     validation_data = pd.read_csv(validation_data_path)
     test_data = pd.read_csv(test_data_path)
@@ -146,25 +155,80 @@ def random_forest_model(train_data_path
         writer = csv.writer(csv_file)
         for key, value in hyperparameters.items():
            writer.writerow([key, value])
-    pdb.set_trace()       
-    randomCV = RandomizedSearchCV(estimator=RandomForestClassifier(verbose=1), param_distributions=hyperparameters, n_iter=2, cv=3,scoring="f1")
+    # pdb.set_trace()    
+    training_all = training_all.sample(frac=1)
+    test_data = test_data.sample(frac=1)
+
+    randomCV = RandomizedSearchCV(estimator=RandomForestClassifier(verbose=1), param_distributions=hyperparameters, n_iter=10, cv=5,scoring="f1")
     randomCV.fit(training_all.iloc[:,1:-1], training_all['Label'])
-
+    # pdb.set_trace()
+    (pd.DataFrame.from_dict(data=randomCV.best_params_, orient='index').to_csv('results/classical_ml_models/best_params_rf.csv', header=False))
     best_rf_model= randomCV.best_estimator_
-    feat_importances = pd.Series(randomCV.best_estimator_.feature_importances_, index=train_header.replace('\n','').split(',')[1:-1])
+    # feat_importances = pd.Series(randomCV.best_estimator_.feature_importances_, index=training_all.iloc[:,1:-1].columns)
 
-    fig = feat_importances.nlargest(len(training_all.columns)-2).plot(kind='barh', grid=True,figsize=(12,10))
-    fig.set_xlabel("Importance Score")
-    fig.set_ylabel("Features")
-    fig.get_figure().savefig("results/classical_ml_models/feature_importance.png", dpi=300)
+    # fig = feat_importances.nlargest(len(training_all.columns)-2).plot(kind='barh', grid=True,figsize=(12,10))
+    # fig.set_xlabel("Importance Score")
+    # fig.set_ylabel("Features")
+    # fig.get_figure().savefig("results/classical_ml_models/feature_importance.png", dpi=300)
 
-    rf_predictions = best_rf_model.predict(test_data.iloc[:,1:-1])
+    rf_predictions = best_rf_model.predict(test_data.iloc[:,1:-1])    
 
-    rf_test_auc=roc_auc_score(test_data['Label'], best_rf_model.predict_proba(test_data.iloc[:,1:-1])[:,1])
-
-    tn, tp, fn, fp, accuracy, precision, recall, specificity, F1 = performance_evaluation(rf_predictions
-                                                                            , test_data['Label']
+    tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc = performance_evaluation(rf_predictions
+                                                                            , test_data
+                                                                            , best_rf_model
                                                                             )   
+    write_results(tn, tp, fn, fp, 
+                accuracy, precision, recall, specificity
+                , F1, rf_test_auc
+                , 'rf')
 
 
+def linearregression(train_data_path
+                        , validation_data_path
+                        , test_data_path
+                        ):
+    # pdb.set_trace()
+    train_data = pd.read_csv(train_data_path)
+    validation_data = pd.read_csv(validation_data_path)
+    test_data = pd.read_csv(test_data_path)
+    training_all = pd.concat([train_data, validation_data], axis=0, ignore_index = True)
+    hyperparameters = {
+                    'penalty' : ['l1', 'l2', 'none'],
+                    'solver' : ['sag','saga'],
+                    # 'degree' : [0, 1, 2, 3, 4, 5, 6],
+                    #'penalty': ['l1', 'l2'],
+                    #'loss' : ['hinge', 'squared_hinge'],
+                    #'dual' : [True, False],
+                    'C': [2**-10, 2** -8, 2 ** -6, 2** -4, 2**-2, 1, 2**2, 2**4, 2**6, 2**8, 2**10]       
+    }
+    with open('saved_classical_ml_models/lr_hyperparameters.csv', 'w') as csv_file:  
+        writer = csv.writer(csv_file)
+        for key, value in hyperparameters.items():
+           writer.writerow([key, value])
+    # pdb.set_trace()    
+    training_all = training_all.sample(frac=1)
+    test_data = test_data.sample(frac=1)
 
+    randomCV = RandomizedSearchCV(estimator=LogisticRegression(), param_distributions=hyperparameters, n_iter=10, cv=5,scoring="f1")
+    randomCV.fit(training_all.iloc[:,1:-1], training_all['Label'])
+    # pdb.set_trace()
+    (pd.DataFrame.from_dict(data=randomCV.best_params_, orient='index').to_csv('results/classical_ml_models/best_params_lr.csv', header=False))
+    best_lr_model= randomCV.best_estimator_
+    # feat_importances = pd.Series(randomCV.best_estimator_.feature_importances_, index=training_all.iloc[:,1:-1].columns)
+
+    # fig = feat_importances.nlargest(len(training_all.columns)-2).plot(kind='barh', grid=True,figsize=(12,10))
+    # fig.set_xlabel("Importance Score")
+    # fig.set_ylabel("Features")
+    # fig.get_figure().savefig("results/classical_ml_models/feature_importance.png", dpi=300)
+
+    lr_predictions = best_lr_model.predict(test_data.iloc[:,1:-1])    
+
+    tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc = performance_evaluation(lr_predictions
+                                                                            , test_data
+                                                                            , best_lr_model
+                                                                            )   
+    write_results(tn, tp, fn, fp, 
+                accuracy, precision, recall, specificity
+                , F1, rf_test_auc
+                , 'lr')
+    

@@ -59,7 +59,7 @@ def sort_diagnoses(diags_path='data/sampled_oud_yes_icd_presc_based_diagnoses_vi
     print('The data included {} records with no ENROLID'.format(num_inval))
     return 0
 
-def sort_procedures(procs_path='data/oud_yes_icd_presc_based_procedures_view.csv'):
+def sort_procedures(procs_path='data/sampled_oud_yes_icd_presc_based_procedures_view.csv'):
     enrolid_idx = 0
     dim=3
     num_inval=0
