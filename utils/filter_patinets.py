@@ -113,9 +113,9 @@ def filter_patients_positives(meds_path
     # metadata_dict = metadata.set_index('ENROLID').T.to_dict('list')
     with open(meds_path) as medications_file, open(diags_path) as diagnoses_file, open(procs_path) as procedures_file, open(demogs_path) as demographics_file, open(meds_path[:-4]+'_eligible.csv','w') as elig_medications_file, open(diags_path[:-4]+'_eligible.csv','w') as elig_diagnoses_file, open(procs_path[:-4]+'_eligible.csv','w') as elig_procedures_file, open('outputs/'+cohort+'_demographics_eligible.csv','w') as elig_demographics_file, open('outputs/'+cohort+'_un_eligibles.csv','w') as uneligs_file:
         demogs_header = next(demographics_file)
-        elig_demographics_file.write(','.join(map(repr,['ENROLID', 'DOB', 'SEX', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA', 'DIAGNOSES_DATE'])))    
+        elig_demographics_file.write(','.join(['ENROLID', 'DOB', 'SEX', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA', 'DIAGNOSES_DATE']))
         elig_demographics_file.write('\n')
-        uneligs_file.write(','.join(map(repr,['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available'])))    
+        uneligs_file.write(','.join(['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available']))  
         uneligs_file.write('\n')
         # pdb.set_trace()
         for i in range(len(enrolids_all_unique)):
@@ -229,9 +229,9 @@ def filter_patients_negatives(meds_path
     # metadata_dict = metadata.set_index('ENROLID').T.to_dict('list')
     with open(meds_path) as medications_file, open(diags_path) as diagnoses_file, open(procs_path) as procedures_file, open(demogs_path) as demographics_file, open(meds_path[:-4]+'_eligible.csv','w') as elig_medications_file, open(diags_path[:-4]+'_eligible.csv','w') as elig_diagnoses_file, open(procs_path[:-4]+'_eligible.csv','w') as elig_procedures_file, open('outputs/'+cohort+'_demographics_eligible.csv','w') as elig_demographics_file, open('outputs/'+cohort+'_un_eligibles.csv','w') as uneligs_file:
         demogs_header = next(demographics_file)
-        elig_demographics_file.write(','.join(map(repr,['ENROLID', 'DOB', 'SEX', 'NUM_MONTHLY_OPIOID_PRESCS','NUM_MONTHS_IN_DATA','LAST_RECORD_DATE'])))    
+        elig_demographics_file.write(','.join(['ENROLID', 'DOB', 'SEX', 'NUM_MONTHLY_OPIOID_PRESCS','NUM_MONTHS_IN_DATA','LAST_RECORD_DATE']))  
         elig_demographics_file.write('\n')
-        uneligs_file.write(','.join(map(repr,['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available'])))    
+        uneligs_file.write(','.join(['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available']))  
         uneligs_file.write('\n')        
         # pdb.set_trace()
         for i in range(len(enrolids_all_unique)):

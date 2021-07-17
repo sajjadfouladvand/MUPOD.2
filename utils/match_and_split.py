@@ -44,6 +44,16 @@ def remove_existing_train_val_test():
     if os.path.exists("outputs/test_demographics.csv"):
         os.remove("outputs/test_demographics.csv")    
 
+def sampling_oud_yes_cohort(demogs_oud_yes_path
+                            , num_sample
+                            ):
+    # pdb.set_trace()
+    demogs_oud_yes = pd.read_csv(demogs_oud_yes_path)
+    demogs_oud_yes_sampled = demogs_oud_yes.sample(num_sample)
+    demogs_oud_yes_sampled.to_csv(demogs_oud_yes_path[:-4]+'_sampled.csv', index=False)
+    return demogs_oud_yes_path[:-4]+'_sampled.csv'
+
+
 
 def cohort_matching( demogs_oud_yes_path
                     , demogs_oud_no_path
@@ -72,7 +82,7 @@ def cohort_matching( demogs_oud_yes_path
             demogs_oud_no.loc[demogs_oud_no['ENROLID'].isin(matched_negs['ENROLID'].values),'MATCHED'] = 1
     # pdb.set_trace()
     demogs_oud_no[demogs_oud_no['MATCHED']==1].loc[:, demogs_oud_no.columns != 'MATCHED'].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)
-    return 1
+    return demogs_oud_no_path[:-4]+'_matched.csv'
 
 def blind_data(line_meds_splitted
             , line_diags_splitted
@@ -82,6 +92,7 @@ def blind_data(line_meds_splitted
             , enrolid
             , date_idx = 5
             , label_idx = 6):
+    # pdb.set_trace()
     line_meds_blinded = [enrolid]
     line_diags_blinded = [enrolid]
     line_procs_blinded = [enrolid]
@@ -92,7 +103,13 @@ def blind_data(line_meds_splitted
 
     for i in range(len(line_meds_splitted)):
         current_date = int(line_meds_splitted[i][0]) 
-        diag_or_last_data = int(line_demogs_splitted[date_idx])
+        if 'DIAGNOSES_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['DIAGNOSES_DATE'])
+        elif 'LAST_RECORD_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['LAST_RECORD_DATE'])
+        else:
+            pdb.set_trace()
+            print('Warning: demographics table includes unknown column.')    
         # if line_meds_splitted[i][0] 
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
         if diff_times > prediction_win_size:
@@ -101,8 +118,13 @@ def blind_data(line_meds_splitted
     #  diags        
     for i in range(len(line_diags_splitted)):
         current_date = int(line_diags_splitted[i][0]) 
-        diag_or_last_data = int(line_demogs_splitted[date_idx])
-        # if line_meds_splitted[i][0] 
+        if 'DIAGNOSES_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['DIAGNOSES_DATE'])
+        elif 'LAST_RECORD_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['LAST_RECORD_DATE'])
+        else:
+            pdb.set_trace()
+            print('Warning: demographics table includes unknown column.')    
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
         if diff_times > prediction_win_size:
             line_diags_blinded.extend(line_diags_splitted[i])
@@ -111,8 +133,13 @@ def blind_data(line_meds_splitted
     # procs        
     for i in range(len(line_procs_splitted)):
         current_date = int(line_procs_splitted[i][0]) 
-        diag_or_last_data = int(line_demogs_splitted[date_idx])
-        # if line_meds_splitted[i][0] 
+        if 'DIAGNOSES_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['DIAGNOSES_DATE'])
+        elif 'LAST_RECORD_DATE' in line_demogs_splitted.columns:
+            diag_or_last_data = int(line_demogs_splitted['LAST_RECORD_DATE'])
+        else:
+            pdb.set_trace()
+            print('Warning: demographics table includes unknown column.')    
         diff_times = diff_month(datetime(diag_or_last_data//100,diag_or_last_data%100, 1 ), datetime(current_date//100,current_date%100, 1))
         if diff_times > prediction_win_size:
             line_procs_blinded.extend(line_procs_splitted[i])
@@ -130,14 +157,16 @@ def split_train_validation_test(meds_oud_yes_path
                                    , demogs_oud_no_path
                                    , train_ratio
                                    , validation_ratio
-                                   , matched
                                    , prediction_win_size
                                    ):
+    
+    oud_yes_demographics = pd.read_csv(demogs_oud_yes_path)
+    oud_no_demographics = pd.read_csv(demogs_oud_no_path)
     # Remove existing files
-    if matched ==1:
-        # pdb.set_trace()
-        demogs_oud_no_path = demogs_oud_no_path[:-4]+'_matched.csv'
-        print('You are using matched negative cohort: {}'.format(demogs_oud_no_path))
+    # if matched ==1:
+    #     # pdb.set_trace()
+    #     demogs_oud_no_path = demogs_oud_no_path[:-4]+'_matched.csv'
+    #     print('You are using matched negative cohort: {}'.format(demogs_oud_no_path))
     remove_existing_train_val_test()
     enrolid_ind = 0
     
@@ -164,25 +193,30 @@ def split_train_validation_test(meds_oud_yes_path
             line_procs_splitted=line_procs.split(',')
             line_procs_splitted = [i.replace("'","") for i in line_procs_splitted]
 
-            line_demogs = demographics_oud_yes_file.readline().rstrip('\n')   
-            line_demogs_splitted = line_demogs.split(',')
-            line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
-            line_demogs_splitted.append('1')
+            # line_demogs = demographics_oud_yes_file.readline().rstrip('\n')   
+            # line_demogs_splitted = line_demogs.split(',')
+            # line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
+            # line_demogs_splitted.append('1')
             
             # Check if all the streams belong to the same patient
-            if not(int(line_demogs_splitted[enrolid_ind]) == int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
-            current_enrolid = int(line_meds_splitted[enrolid_ind].replace("'",''))
-            rand_temp=random.randint(1,100)
-            # print(line_diags_splitted[enrolid_ind].replace("'",''))
-            # if line_diags_splitted[enrolid_ind].replace("'",'') == '15331702':
+            current_enrolid = int(line_meds_splitted[enrolid_ind].replace("'",''))            
             # pdb.set_trace()
+            current_demographics = oud_yes_demographics[oud_yes_demographics['ENROLID'] == current_enrolid]
+            if current_demographics.empty == True:
+                continue
+            if len(current_demographics) > 1:
+                print('Warning: there are more than 1 record in the demographics')
+                pdb.set_trace()            
+            rand_temp=random.randint(1,100)
+
             # Blind the data before writing in into to train, validation and test
             line_meds_blinded, line_diags_blinded, line_procs_blinded = blind_data(line_meds_splitted
                                                                                     , line_diags_splitted
                                                                                     , line_procs_splitted
-                                                                                    , line_demogs_splitted
+                                                                                    , current_demographics
                                                                                     , prediction_win_size
                                                                                     , current_enrolid)    
 
@@ -198,7 +232,9 @@ def split_train_validation_test(meds_oud_yes_path
                 valid_diags_file.write('\n')  
                 valid_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 valid_procs_file.write('\n')  
-                valid_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                valid_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 1 means oud-yes patient
+                valid_demogs_file.write(', 1')
                 valid_demogs_file.write('\n')
                 valid_labels_file.write(str(current_enrolid))
                 valid_labels_file.write(',')
@@ -213,7 +249,9 @@ def split_train_validation_test(meds_oud_yes_path
                 test_diags_file.write('\n')  
                 test_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 test_procs_file.write('\n')  
-                test_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                test_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 1 means oud-yes patient
+                test_demogs_file.write(', 1')
                 test_demogs_file.write('\n')
                 test_labels_file.write(str(current_enrolid))
                 test_labels_file.write(',')
@@ -228,7 +266,9 @@ def split_train_validation_test(meds_oud_yes_path
                 train_diags_file.write('\n')  
                 train_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 train_procs_file.write('\n')  
-                train_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                train_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 1 means oud-yes patient
+                train_demogs_file.write(', 1')
                 train_demogs_file.write('\n')
                 train_labels_file.write(str(current_enrolid))
                 train_labels_file.write(',')
@@ -240,7 +280,7 @@ def split_train_validation_test(meds_oud_yes_path
     with open(meds_oud_no_path) as medications_oud_no_file, open(diags_oud_no_path) as diagnoses_oud_no_file, open(procs_oud_no_path) as procedures_oud_no_file, open(demogs_oud_no_path) as demographics_oud_no_file, open('outputs/train_medications.csv', 'a') as train_meds_file, open('outputs/train_diagnoses.csv', 'a') as train_diags_file, open('outputs/train_procedures.csv', 'a') as train_procs_file, open('outputs/train_demographics.csv', 'a') as train_demogs_file, open('outputs/train_labels.csv','a') as train_labels_file, open('outputs/validation_medications.csv', 'a') as valid_meds_file, open('outputs/validation_diagnoses.csv', 'a') as valid_diags_file, open('outputs/validation_procedures.csv', 'a') as valid_procs_file, open('outputs/validation_demographics.csv', 'a') as valid_demogs_file, open('outputs/validation_labels.csv','a') as valid_labels_file, open('outputs/test_medications.csv', 'a') as test_meds_file, open('outputs/test_diagnoses.csv', 'a') as test_diags_file, open('outputs/test_procedures.csv', 'a') as test_procs_file, open('outputs/test_demographics.csv', 'a') as test_demogs_file, open('outputs/test_labels.csv','a') as test_labels_file:
         demogs_oud_no_header = next(demographics_oud_no_file)
         # pdb.set_trace()
-        demog_read_flag = True
+        # demog_read_flag = True
         for line_meds in medications_oud_no_file:
             line_meds_splitted = line_meds.split(',')
             line_meds_splitted = [i.replace("'","") for i in line_meds_splitted]
@@ -253,33 +293,40 @@ def split_train_validation_test(meds_oud_yes_path
             line_procs_splitted=line_procs.split(',')
             line_procs_splitted = [i.replace("'","") for i in line_procs_splitted]
 
-            if demog_read_flag == True:
-                line_demogs = demographics_oud_no_file.readline().rstrip('\n')   
-                line_demogs_splitted = line_demogs.split(',')
-                line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
-                line_demogs_splitted.append('0')
+            # if demog_read_flag == True:
+            #     line_demogs = demographics_oud_no_file.readline().rstrip('\n')   
+            #     line_demogs_splitted = line_demogs.split(',')
+            #     line_demogs_splitted = [i.replace("'","") for i in line_demogs_splitted]
+            #     line_demogs_splitted.append('0')
             # pdb.set_trace()
+            # if int(line_meds_splitted[enrolid_ind].replace("'",'')) == 33149430201:
+            #     pdb.set_trace()
             if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
-            if (int(line_meds_splitted[enrolid_ind].replace("'",'')) < int(line_demogs_splitted[enrolid_ind]) ):
-                # pdb.set_trace()
-                demog_read_flag = False
-                continue
-            else:
-                demog_read_flag = True
-            if not(int(line_demogs_splitted[enrolid_ind]) == int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+            # if (int(line_meds_splitted[enrolid_ind].replace("'",'')) < int(line_demogs_splitted[enrolid_ind]) ):
+            #     pdb.set_trace()
+            #     demog_read_flag = False
+            #     continue
+            # else:
+            #     demog_read_flag = True
+            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
             # pdb.set_trace()
             current_enrolid = int(line_meds_splitted[enrolid_ind].replace("'",''))
+            current_demographics = oud_no_demographics[oud_no_demographics['ENROLID'] == current_enrolid]
+            if current_demographics.empty == True:
+                continue            
+            if len(current_demographics) > 1:
+                print('Warning: there are more than 1 record in the demographics')
+                pdb.set_trace()
             rand_temp=random.randint(1,100)
-            
 
             line_meds_blinded, line_diags_blinded, line_procs_blinded = blind_data(line_meds_splitted
                                                                                     , line_diags_splitted
                                                                                     , line_procs_splitted
-                                                                                    , line_demogs_splitted
+                                                                                    , current_demographics
                                                                                     , prediction_win_size
                                                                                     , current_enrolid)    
 
@@ -293,7 +340,9 @@ def split_train_validation_test(meds_oud_yes_path
                 valid_diags_file.write('\n')  
                 valid_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 valid_procs_file.write('\n')  
-                valid_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                valid_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 0 means oud-no patient
+                valid_demogs_file.write(', 0')
                 valid_demogs_file.write('\n')
                 valid_labels_file.write(str(current_enrolid))
                 valid_labels_file.write(',')
@@ -308,7 +357,9 @@ def split_train_validation_test(meds_oud_yes_path
                 test_diags_file.write('\n')  
                 test_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 test_procs_file.write('\n')  
-                test_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                test_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 0 means oud-no patient
+                test_demogs_file.write(', 0')
                 test_demogs_file.write('\n')
                 test_labels_file.write(str(current_enrolid))
                 test_labels_file.write(',')
@@ -323,7 +374,9 @@ def split_train_validation_test(meds_oud_yes_path
                 train_diags_file.write('\n')  
                 train_procs_file.write((','.join(map(repr, line_procs_blinded))).replace("'","").replace('\n',''))
                 train_procs_file.write('\n')  
-                train_demogs_file.write((','.join(map(repr, line_demogs_splitted))).replace("'","").replace('\n',''))
+                train_demogs_file.write((','.join(map(repr, current_demographics.values[0]))).replace("'","").replace('\n',''))
+                # 0 means oud-no patient
+                train_demogs_file.write(', 0')
                 train_demogs_file.write('\n')
                 train_labels_file.write(str(current_enrolid))
                 train_labels_file.write(',')

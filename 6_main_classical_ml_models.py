@@ -27,4 +27,9 @@ elif args.ml_model == 'lr':
     cl_ml.linearregression(args.train_data_path
                             , args.validation_data_path
                             , args.test_data_path
-                            )    
+                            )   
+elif args.ml_model == 'svm':
+    cl_ml.support_vector_machine(args.train_data_path
+                            , args.validation_data_path
+                            , args.test_data_path
+                            )                                
