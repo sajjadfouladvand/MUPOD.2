@@ -6,6 +6,45 @@ import pandas as pd
 import itertools
 from datetime import datetime
 from scipy.spatial.distance import cdist
+import pickle
+import time
+from sklearn.cluster import KMeans
+from matplotlib import pyplot as plt
+from yellowbrick.cluster import KElbowVisualizer
+
+def normalize_min_max(oud_yes_df
+                    , oud_no_df):
+    # pdb.set_trace()
+    epsil = 2.220446049250313e-16
+    oud_yes_df_mins = oud_yes_df.min()
+    oud_no_df_mins = oud_no_df.min()
+    temp_mins = pd.concat([oud_yes_df_mins, oud_no_df_mins], axis=1, ignore_index=True)
+    global_mins = temp_mins.min(axis=1)
+
+
+    oud_yes_df_max = oud_yes_df.max()
+    oud_no_df_max = oud_no_df.max()
+    temp_max = pd.concat([oud_yes_df_max, oud_no_df_max], axis=1, ignore_index=True)
+    global_max = temp_max.max(axis=1) 
+    
+    # global_max[global_max == global_mins]
+
+    normalized_oud_yes=(oud_yes_df-global_mins)/((global_max-global_mins) + epsil)    
+    normalized_oud_no=(oud_no_df-global_mins)/((global_max-global_mins) + epsil)    
+    
+    return normalized_oud_yes, normalized_oud_no
+
+def find_closest(df, val, k):
+    # The k closets are definately within closest+k and closets-k. Therefore, the k smallets values within this interval are the k-closets ones.
+    # Note, although the values are sorted, but still all the k-nearest might be in closets-k to closets or all withing closet to closet to closest+k. So we need to look at the entire [closest-k, closest+k] interval
+    return df.loc[df['AVG_DIST_TO_K'].sub(val).abs().nsmallest(k).index]
+
+def find_closest_sorted(df, val, k):
+    # searchsorted use binary search to find the insert location for val
+    closest = df['AVG_DIST_TO_K'].searchsorted(val)
+    if (closest - k) <0:
+        return find_closest(df.iloc[:closest + k], val, k)    
+    return find_closest(df.iloc[closest - k:closest + k], val, k)
 
 def diff_month(d1, d2):
     return (d1.year - d2.year) * 12 + d1.month - d2.month
@@ -54,12 +93,171 @@ def sampling_oud_yes_cohort(demogs_oud_yes_path
     return demogs_oud_yes_path[:-4]+'_sampled.csv'
 
 
+def cohort_matching_big_data( demogs_oud_yes_path
+                    , demogs_oud_no_path
+                    , pos_to_negs_ratio
+                    , k
+                    ):
+    
+    match_based_on = ['DOB', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA']
+    
+    demog_oud_yes_data = pd.read_csv(demogs_oud_yes_path)
+    demog_oud_no_data = pd.read_csv(demogs_oud_no_path)
+
+    # Normalizing the demographic data (I will only use those that we matched based on)
+    demog_oud_yes_data_filtered_normed, demog_oud_no_data_filtered_normed = normalize_min_max(demog_oud_yes_data[match_based_on]
+                                                                                            , demog_oud_no_data[match_based_on])
+    # Copy normalized value into the original data frame for columns in the match_based_on list
+    demog_oud_yes_data[match_based_on] = demog_oud_yes_data_filtered_normed
+    demog_oud_no_data[match_based_on] = demog_oud_no_data_filtered_normed
+    
+    # Deviding oud_yes cohort to two sub-cohort based on SEX
+    demog_oud_yes_data_sex_1 = demog_oud_yes_data[demog_oud_yes_data['SEX'] == 1]
+    demog_oud_yes_data_sex_2 = demog_oud_yes_data[demog_oud_yes_data['SEX'] == 2]
+
+    # Deviding oud_no cohort to two sub-cohort based on SEX
+    demog_oud_no_data_sex_1 = demog_oud_no_data[demog_oud_no_data['SEX'] == 1]
+    demog_oud_no_data_sex_2 = demog_oud_no_data[demog_oud_no_data['SEX'] == 2]
+    
+    
+    # ==== For SEX = 1 ===
+    # Find the optimum number of clusters using KElbowVisualizer in Yellow Brick
+    elbow_range=30
+
+    model = KMeans()
+    visualizer = KElbowVisualizer(model, k=(2,elbow_range))
+    visualizer.fit(demog_oud_yes_data_sex_1[match_based_on]) 
+    visualizer.show() 
+    plt.savefig('results/visualization_results/kmeans_KElbowVisualizer_sex1_'+str(elbow_range)+'.png', dpi=600)
+    plt.close()
+
+    # wcss = []
+    # range_k = 8
+    # for i in range(1, range_k):
+    #     k_itr = 2 ** i
+    #     kmeans = KMeans(n_clusters=k_itr, init='k-means++', max_iter=600, n_init=10, random_state=1234)
+    #     kmeans.fit(demog_oud_yes_data_sex_1[match_based_on])
+    #     wcss.append(kmeans.inertia_)
+    #     print(k_itr)                
+    # plt.plot([2**i for i in range(1,range_k)], wcss)
+    # plt.xlabel('Number of clusters')
+    # plt.savefig('results/visualization_results/kmeans_xcss_sex1_'+str(range_k)+'.png', dpi=600)
+    # plt.close()
+    # np.savetxt('wcss_list_sex1.csv', wcss)
+
+    kmeans = KMeans(n_clusters=visualizer.elbow_value_, init='k-means++', max_iter=600, n_init=10, random_state=1234)
+    pred_y = kmeans.fit_predict(demog_oud_yes_data_sex_1[match_based_on])
+    cluster_centers = pd.DataFrame(data=kmeans.cluster_centers_, columns=demog_oud_yes_data_sex_1[match_based_on].columns)
+
+    # Randomly select K (=30) oud_yes patients
+    cluster_centers.to_csv('outputs/cluster_centers_sex1_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+    
+    # Find the cosine similarity between all oud_no patients to the k anchors 
+    similarities = cdist(cluster_centers, demog_oud_no_data_sex_1[match_based_on], metric='euclidean')
+    
+    # Compute the arithmetic/geometric mean of the K cosine similarities for all rows in D 
+    similarities_avg = similarities.mean(axis=0) 
+
+    # Create a dataframe, A (in the code I call it dist_to_anchor_oud_no_sex1), whith two columns: oud_no patients ENROLID, and their averaged distance to the k anchors
+    dist_to_anchor_oud_no_sex1 = pd.DataFrame({'ENROLID':demog_oud_no_data_sex_1['ENROLID'].values, 'AVG_DIST_TO_K':similarities_avg})
+    # This MATCHED column will be used to implement matching without replacement
+    dist_to_anchor_oud_no_sex1['MATCHED'] = 0
+
+    # Sort A (in the code I used the name dist_to_anchor_oud_no_sex1 instead of A) based on distance to 
+    dist_to_anchor_oud_no_sex1.sort_values('AVG_DIST_TO_K', inplace=True)
+
+    line_counter = 0
+    start_time = time.time()
+    # For each oud_yes sample p_i
+    for index, row in demog_oud_yes_data_sex_1.iterrows(): 
+        if line_counter%10000==0:
+            print(line_counter)
+            print("--- %s seconds ---" % (time.time() - start_time))
+        line_counter +=1   
+        #  Find the average cosine similarities, x_i, between this patient P_i to the K oud_yes anchor samples.
+        similarities_oud_yes_to_anchor = cdist(np.reshape(row[match_based_on].values, (1,len(match_based_on))), np.reshape(cluster_centers.values, (-1,len(match_based_on))), metric='euclidean')
+        avg_sim_oud_yes_to_anch = np.mean(similarities_oud_yes_to_anchor)
+        
+        # Use binary search to find the closests positions to the average distance computed above
+        matched_oud_no_samples = find_closest_sorted(dist_to_anchor_oud_no_sex1[dist_to_anchor_oud_no_sex1['MATCHED'] == 0], avg_sim_oud_yes_to_anch, pos_to_negs_ratio)
+        if len(matched_oud_no_samples) == 0:
+            pdb.set_trace()
+        dist_to_anchor_oud_no_sex1.loc[matched_oud_no_samples.index, 'MATCHED'] = 1
+
+    # ============ For SEX=2  
+    # pdb.set_trace()  
+    model = KMeans()
+    visualizer = KElbowVisualizer(model, k=(2,elbow_range))
+    visualizer.fit(demog_oud_yes_data_sex_2[match_based_on]) 
+    visualizer.show() 
+    plt.savefig('results/visualization_results/kmeans_KElbowVisualizer_sex2_'+str(elbow_range)+'.png', dpi=600)
+    plt.close()    
+    # pdb.set_trace()
+    # wcss_sex2 = []
+    # range_k = 8
+    # for i in range(1, range_k):
+    #     k_itr = 2 ** i
+    #     kmeans = KMeans(n_clusters=k_itr, init='k-means++', max_iter=600, n_init=10, random_state=1234)
+    #     kmeans.fit(demog_oud_yes_data_sex_2[match_based_on])
+    #     wcss_sex2.append(kmeans.inertia_)
+    #     print(k_itr)                
+    # plt.plot([2**i for i in range(1,range_k)], wcss_sex2)
+    # plt.xlabel('Number of clusters')
+    # plt.savefig('results/visualization_results/kmeans_xcss_sex2_'+str(range_k)+'.png', dpi=600)
+    # plt.close()
+    # np.savetxt('wcss_list_sex2.csv', wcss_sex2)
+
+    kmeans = KMeans(n_clusters=visualizer.elbow_value_, init='k-means++', max_iter=600, n_init=10, random_state=1234)
+    pred_y = kmeans.fit_predict(demog_oud_yes_data_sex_2[match_based_on])
+    cluster_centers = pd.DataFrame(data=kmeans.cluster_centers_, columns=demog_oud_yes_data_sex_2[match_based_on].columns)
+
+    # Randomly select K (=30) oud_yes patients
+    cluster_centers.to_csv('outputs/cluster_centers_sex2_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+    
+    similarities_sex2 = cdist(cluster_centers, demog_oud_no_data_sex_2[match_based_on], metric='euclidean')
+    
+    # Compute the arithmetic/geometric mean of the K cosine similarities for all rows in D 
+    similarities_sex2_avg = similarities_sex2.mean(axis=0) 
+
+    # Create a dataframe whith two columns: oud_no patients ENROLID, averaged distance to the k anchors
+    dist_to_anchor_oud_no_sex2 = pd.DataFrame({'ENROLID':demog_oud_no_data_sex_2['ENROLID'].values, 'AVG_DIST_TO_K':similarities_sex2_avg})
+    dist_to_anchor_oud_no_sex2['MATCHED'] = 0
+
+    # Sort A
+    dist_to_anchor_oud_no_sex2.sort_values('AVG_DIST_TO_K', inplace=True)
+
+    line_counter = 0
+    for index, row in demog_oud_yes_data_sex_2.iterrows(): 
+        if line_counter%10000==0:
+            print(line_counter)
+            print("--- %s seconds ---" % (time.time() - start_time))
+        line_counter +=1
+    
+        #  Find the average cosine similarities, x_i, between this patient P_i to the K oud_yes anchor samples.
+        similarities_oud_yes_to_anchor = cdist(np.reshape(row[match_based_on].values, (1,len(match_based_on))), np.reshape(cluster_centers.values, (-1,len(match_based_on))), metric='euclidean')
+        avg_sim_oud_yes_to_anch = np.mean(similarities_oud_yes_to_anchor)
+        
+        # Use binary search to find the closests positions
+        matched_oud_no_samples = find_closest_sorted(dist_to_anchor_oud_no_sex2[dist_to_anchor_oud_no_sex2['MATCHED'] == 0], avg_sim_oud_yes_to_anch, pos_to_negs_ratio)
+        if len(matched_oud_no_samples) == 0:
+            pdb.set_trace()        
+        dist_to_anchor_oud_no_sex2.loc[matched_oud_no_samples.index, 'MATCHED'] = 1
+
+    print('-------- Finished matching-----------')    
+    print("--- %s seconds ---" % (time.time() - start_time))  
+    #pdb.set_trace()
+    matched_oud_no_all = pd.concat([dist_to_anchor_oud_no_sex2[dist_to_anchor_oud_no_sex2['MATCHED']==1], dist_to_anchor_oud_no_sex1[dist_to_anchor_oud_no_sex1['MATCHED']==1]])
+    dist_to_anchor_oud_no_sex1[dist_to_anchor_oud_no_sex1['MATCHED']==1].to_csv(demogs_oud_no_path[:-4]+'_matched_SEX1.csv', index=False)
+    dist_to_anchor_oud_no_sex2[dist_to_anchor_oud_no_sex2['MATCHED']==1].to_csv(demogs_oud_no_path[:-4]+'_matched_SEX2.csv', index=False)
+
+    demog_oud_no_data[demog_oud_no_data.ENROLID.isin(matched_oud_no_all.ENROLID)].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)    
+    return demogs_oud_no_path[:-4]+'_matched.csv'
 
 def cohort_matching( demogs_oud_yes_path
                     , demogs_oud_no_path
                     , pos_to_negs_ratio
                     ):
-    # pdb.set_trace()
+    #pdb.set_trace()
     match_based_on = ['DOB', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA']
     demogs_oud_yes = pd.read_csv(demogs_oud_yes_path)
     demogs_oud_yes.columns = demogs_oud_yes.columns.str.replace("'",'')
@@ -67,7 +265,13 @@ def cohort_matching( demogs_oud_yes_path
     demogs_oud_no.columns = demogs_oud_no.columns.str.replace("'",'')
     demogs_oud_no['MATCHED'] = 0
     matched_negatives_enrolids = list()
+    line_counter = 0 
+    # with open('outputs/similarity_matrix.csv')
     for index, row in demogs_oud_yes.iterrows():
+        # print(line_counter)
+        if line_counter % 1000 == 0:
+            print('Finished matching oud_no samples to {} oud_yes patients out of {} oud_yes patients. The ratio is {}.'.format(line_counter, len(demogs_oud_yes), pos_to_negs_ratio))
+        line_counter +=1    
         oud_no_data_filtered_sex = demogs_oud_no[(demogs_oud_no['SEX'] == row['SEX']) & (demogs_oud_no['MATCHED'] == 0)]
         if len(oud_no_data_filtered_sex) == 0:
             # if len(demogs_oud_no[demogs_oud_no['MATCHED'] == 0]) == 0:
@@ -158,13 +362,13 @@ def split_train_validation_test(meds_oud_yes_path
                                    , train_ratio
                                    , validation_ratio
                                    , prediction_win_size
-                                   ):
+                                   , display_step):
     
     oud_yes_demographics = pd.read_csv(demogs_oud_yes_path)
     oud_no_demographics = pd.read_csv(demogs_oud_no_path)
     # Remove existing files
     # if matched ==1:
-    #     # pdb.set_trace()
+    #pdb.set_trace()
     #     demogs_oud_no_path = demogs_oud_no_path[:-4]+'_matched.csv'
     #     print('You are using matched negative cohort: {}'.format(demogs_oud_no_path))
     remove_existing_train_val_test()
@@ -181,7 +385,11 @@ def split_train_validation_test(meds_oud_yes_path
         test_demogs_file.write(demogs_header.replace('\n','').replace("'","") + '_OR_last_record_Date'+', Label')
         test_demogs_file.write('\n')
 
+        line_counter = 0 
         for line_meds in medications_oud_yes_file:
+            if line_counter % display_step == 0:
+                print('Finished analyzing {} oud_yes patients data'.format(line_counter))
+            line_counter +=1
             line_meds_splitted = line_meds.split(',')
             line_meds_splitted = [i.replace("'","") for i in line_meds_splitted]
 
@@ -199,10 +407,10 @@ def split_train_validation_test(meds_oud_yes_path
             # line_demogs_splitted.append('1')
             
             # Check if all the streams belong to the same patient
-            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+            if not(float(line_meds_splitted[enrolid_ind].replace("'",'')) == float(line_diags_splitted[enrolid_ind].replace("'",'')) == float(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
-            current_enrolid = int(line_meds_splitted[enrolid_ind].replace("'",''))            
+            current_enrolid = float(line_meds_splitted[enrolid_ind].replace("'",''))            
             # pdb.set_trace()
             current_demographics = oud_yes_demographics[oud_yes_demographics['ENROLID'] == current_enrolid]
             if current_demographics.empty == True:
@@ -281,7 +489,11 @@ def split_train_validation_test(meds_oud_yes_path
         demogs_oud_no_header = next(demographics_oud_no_file)
         # pdb.set_trace()
         # demog_read_flag = True
+        line_counter = 0
         for line_meds in medications_oud_no_file:
+            if line_counter % display_step == 0:
+                print('Finished analyzing {} oud_no patients data'.format(line_counter))
+            line_counter +=1            
             line_meds_splitted = line_meds.split(',')
             line_meds_splitted = [i.replace("'","") for i in line_meds_splitted]
 
@@ -301,7 +513,7 @@ def split_train_validation_test(meds_oud_yes_path
             # pdb.set_trace()
             # if int(line_meds_splitted[enrolid_ind].replace("'",'')) == 33149430201:
             #     pdb.set_trace()
-            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+            if not(float(line_meds_splitted[enrolid_ind].replace("'",'')) == float(line_diags_splitted[enrolid_ind].replace("'",'')) == float(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
             # if (int(line_meds_splitted[enrolid_ind].replace("'",'')) < int(line_demogs_splitted[enrolid_ind]) ):
@@ -310,11 +522,11 @@ def split_train_validation_test(meds_oud_yes_path
             #     continue
             # else:
             #     demog_read_flag = True
-            if not(int(line_meds_splitted[enrolid_ind].replace("'",'')) == int(line_diags_splitted[enrolid_ind].replace("'",'')) == int(line_procs_splitted[enrolid_ind].replace("'",''))):
+            if not(float(line_meds_splitted[enrolid_ind].replace("'",'')) == float(line_diags_splitted[enrolid_ind].replace("'",'')) == float(line_procs_splitted[enrolid_ind].replace("'",''))):
                pdb.set_trace()
                print("Warning: current streams don't match!")
             # pdb.set_trace()
-            current_enrolid = int(line_meds_splitted[enrolid_ind].replace("'",''))
+            current_enrolid = float(line_meds_splitted[enrolid_ind].replace("'",''))
             current_demographics = oud_no_demographics[oud_no_demographics['ENROLID'] == current_enrolid]
             if current_demographics.empty == True:
                 continue            

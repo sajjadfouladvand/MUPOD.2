@@ -6,10 +6,60 @@ import itertools
 import collections
 import math
 
+def normalize_data_min_max(train_file_name
+                            , validation_file_name
+                            , test_file_name):
+    # pdb.set_trace()
+    epsil = 2.220446049250313e-16
+    round_dig = 5
+    train_data = pd.read_csv(train_file_name)
+    # train_data=train_data.rename(columns = {'-inf':'others'})
+    validation_data = pd.read_csv(validation_file_name)
+    # validation_data=validation_data.rename(columns = {'-inf':'others'})
+    test_data = pd.read_csv(test_file_name)
+    # test_data=test_data.rename(columns = {'-inf':'others'})
+
+    train_mins = train_data.min()
+    val_mins = validation_data.min()
+    test_mins = test_data.min()
+    temp_mins = pd.concat([train_mins, val_mins, test_mins], axis=1, ignore_index=True)
+    global_mins = temp_mins.min(axis=1)
+
+
+    train_max = train_data.max()
+    val_max = validation_data.max()
+    test_max = test_data.max()
+    temp_max = pd.concat([train_max, val_max, test_max], axis=1, ignore_index=True)
+    global_max = temp_max.max(axis=1) 
+    
+    # global_max[global_max == global_mins]
+
+    normalized_train=(train_data-global_mins)/((global_max-global_mins) + epsil)
+    normalized_train['ENROLID'] = train_data['ENROLID']
+    normalized_train['Label'] = train_data['Label']
+
+    normalized_val=(validation_data-global_mins)/((global_max-global_mins) + epsil)
+    normalized_val['ENROLID'] = validation_data['ENROLID']
+    normalized_val['Label'] = validation_data['Label']
+
+    normalized_test=(test_data-global_mins)/((global_max-global_mins) + epsil)
+    normalized_test['ENROLID'] = test_data['ENROLID']
+    normalized_test['Label'] = test_data['Label']
+    
+
+    normalized_train.round(round_dig).to_csv('outputs/train_stationary_normalized.csv', index=False)
+    normalized_val.round(round_dig).to_csv('outputs/validation_stationary_normalized.csv', index=False)
+    normalized_test.round(round_dig).to_csv('outputs/test_stationary_normalized.csv', index=False)
+    # print('Test')
+
 def create_stationary_meds(line_med, 
                             distinct_tcgpid_2digit_dict
                             , tcgpi_num_digits
                             ):
+    # pdb.set_trace()
+    #sys.float_info.epsilon is 2.220446049250313e-16
+    epsil = 2.220446049250313e-16
+    round_dig = 5
     line_med_splitted = [list(y) for x, y in itertools.groupby(line_med[1:], lambda z: z == 'EOV') if not x]            
     for i in range(len(line_med_splitted)):
         # if line_med_splitted[i][0]
@@ -21,10 +71,11 @@ def create_stationary_meds(line_med,
             else:
                 pdb.set_trace()   
                 print('test') 
+    # pdb.set_trace()
     distinct_tcgpid_2digit_dict_sorted = dict(collections.OrderedDict(sorted(distinct_tcgpid_2digit_dict.items())))    
     num_records = len(line_med_splitted)
     if(num_records != 0):
-        distinct_tcgpid_2digit_dict_sorted = {k: np.round(v / num_records, 3) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}
+        distinct_tcgpid_2digit_dict_sorted = {k: np.round(v / (math.log10(num_records)+ epsil), round_dig) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}
     return distinct_tcgpid_2digit_dict_sorted
 
 def create_stationary_diags(line_diag
@@ -32,6 +83,10 @@ def create_stationary_diags(line_diag
                             , ccs_distinct_dict
                             ):
 
+    # pdb.set_trace()
+    #sys.float_info.epsilon is 2.220446049250313e-16
+    epsil = 2.220446049250313e-16
+    round_dig = 5
     line_diag_splitted = [list(y) for x, y in itertools.groupby(line_diag[1:], lambda z: z == 'EOV') if not x]            
     for i in range(len(line_diag_splitted)):
         for j in range(1, len(line_diag_splitted[i])): 
@@ -48,11 +103,12 @@ def create_stationary_diags(line_diag
             else:
                 pdb.set_trace()   
                 pirnt('warning') 
+    # pdb.set_trace()
     ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(ccs_distinct_dict.items())))
 
     num_records = len(line_diag_splitted)
     if(num_records != 0):
-        ccs_distinct_dict_sorted = {k: np.round(v / num_records, 3) for k, v in ccs_distinct_dict_sorted.items()}
+        ccs_distinct_dict_sorted = {k: np.round(v / (math.log10(num_records)+ epsil), round_dig) for k, v in ccs_distinct_dict_sorted.items()}
     return ccs_distinct_dict_sorted
 
 def create_stationary_procs(line_proc
@@ -60,6 +116,9 @@ def create_stationary_procs(line_proc
                             , proc_ccs_distinct_dict
                             ):
     # pdb.set_trace()
+    #sys.float_info.epsilon is 2.220446049250313e-16
+    round_dig = 5
+    epsil = 2.220446049250313e-16
     line_proc_splitted = [list(y) for x, y in itertools.groupby(line_proc[1:], lambda z: z == 'EOV') if not x]            
     for i in range(len(line_proc_splitted)):
         for j in range(1, len(line_proc_splitted[i])): 
@@ -79,11 +138,12 @@ def create_stationary_procs(line_proc
             else:
                 pdb.set_trace()  
                 print('warning')  
+    # pdb.set_trace()
     proc_ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(proc_ccs_distinct_dict.items())))
 
     num_records = len(line_proc_splitted)
     if(num_records != 0):
-        proc_ccs_distinct_dict_sorted = {k: np.round(v / num_records, 3) for k, v in proc_ccs_distinct_dict_sorted.items()}
+        proc_ccs_distinct_dict_sorted = {k: np.round(v / (math.log10(num_records)+ epsil), round_dig) for k, v in proc_ccs_distinct_dict_sorted.items()}
     return proc_ccs_distinct_dict_sorted         
 
 # def diagnoses_embeding(line_diag, ccd_dict):
@@ -104,10 +164,10 @@ def create_stationary(meds_file
     dob_idx = 1
     sex_idx = 2
     label_idx = 6
+    index_to_calc_age = 2019
     # Min date of birth in TRVNORM is 1889 
     # Max date of birth in TRVNORM is 2018
-    max_age = 130
-    min_age = 1
+
     dim_procs_ccs = pd.read_csv(dim_procs_ccs_file)
     proc_ccs_distinct = dim_procs_ccs['ccs'].dropna().unique()
     proc_ccs_distinct_dict = {}
@@ -166,9 +226,12 @@ def create_stationary(meds_file
             line_demog = line_demog.split(',')            
         
             # pdb.set_trace()
-            current_patient_age = np.round(((2009 - float(line_demog[dob_idx])) - min_age)/(max_age-min_age), 2 )
+            current_patient_age = index_to_calc_age - float(line_demog[dob_idx])# np.round(((2009 - float(line_demog[dob_idx])) - min_age)/(max_age-min_age), 2 )
+            if current_patient_age <0:
+                pdb.set_trace()
+
             current_patient_sex = float(line_demog[sex_idx])
-            if not(int(line_med[0]) == int(line_diag[0]) == int(line_proc[0]) == int(line_demog[0])):
+            if not(float(line_med[0]) == float(line_diag[0]) == float(line_proc[0]) == float(line_demog[0])):
                 pdb.set_trace()
                 print('Warning: the streams do nott match')
 
@@ -176,6 +239,7 @@ def create_stationary(meds_file
             ccs_distinct_dict = dict.fromkeys(ccs_distinct_dict, 0)    
             proc_ccs_distinct_dict = dict.fromkeys(proc_ccs_distinct_dict, 0)    
 
+            # pdb.set_trace()
             multi_hot_meds_dict = create_stationary_meds(line_med, distinct_tcgpid_digits_dict, tcgpi_num_digits)
             multi_hot_diags_dict = create_stationary_diags(line_diag, icd_to_ccs_dict, ccs_distinct_dict)
             multi_hot_procs_dict = create_stationary_procs(line_proc, proc_cd_to_ccs_dict, proc_ccs_distinct_dict)

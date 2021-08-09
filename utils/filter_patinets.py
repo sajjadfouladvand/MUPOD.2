@@ -70,20 +70,20 @@ def extract_enrolids(meds_path
     enrolids_demogs = []
     with open(meds_path) as medications_file:
         for line in medications_file:            
-            enrolids_meds.append(int(line.split(',')[0]))
+            enrolids_meds.append(float(line.split(',')[0]))
     with open(diags_path) as diagnoses_file:    
         for line in diagnoses_file:            
-            enrolids_diags.append(int(line.split(',')[0]))        
+            enrolids_diags.append(float(line.split(',')[0]))        
     with open(procs_path) as procedures_file:  
         for line in procedures_file:            
-            enrolids_procs.append(int(line.split(',')[0]))                    
+            enrolids_procs.append(float(line.split(',')[0]))                    
     with open(demogs_path) as demographics_file:
         demogs_header = next(demographics_file)
         # pdb.set_trace()
         for line in demographics_file:  
             if (line.split(',')[0]) == '':
                 continue
-            enrolids_demogs.append(int(line.split(',')[0]))                                
+            enrolids_demogs.append(float(line.split(',')[0]))                                
     enrolids_meds_df = pd.DataFrame(enrolids_meds, columns=['ENROLIDS'])
     enrolids_diags_df = pd.DataFrame(enrolids_diags, columns=['ENROLIDS'])
     enrolids_procs_df = pd.DataFrame(enrolids_procs, columns=['ENROLIDS'])
@@ -118,8 +118,12 @@ def filter_patients_positives(meds_path
         uneligs_file.write(','.join(['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available']))  
         uneligs_file.write('\n')
         # pdb.set_trace()
+        counter = 0
         for i in range(len(enrolids_all_unique)):
             current_enrolid = enrolids_all_unique[i]
+            counter+=1
+            if counter % display_step == 0:
+                print('Finished processing {} oud_yes patinets out of {}'.format(counter, len(enrolids_all_unique)))
             line_med = medications_file.readline()
             line_med = line_med.split(',')
             line_diag = diagnoses_file.readline()
@@ -128,25 +132,25 @@ def filter_patients_positives(meds_path
             line_proc = line_proc.split(',')
 
 
-            if int(line_med[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_med[enrolid_idx]):
+            if float(line_med[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_med[enrolid_idx]):
                     line_med = medications_file.readline()
                     line_med = line_med.split(',')  
-            elif int(line_med[enrolid_idx]) > current_enrolid:                       
+            elif float(line_med[enrolid_idx]) > current_enrolid:                       
                 pdb.set_trace()
                 print('Warning')
-            if int(line_diag[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_diag[enrolid_idx]):
+            if float(line_diag[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_diag[enrolid_idx]):
                     line_diag = diagnoses_file.readline()
                     line_diag = line_diag.split(',') 
-            elif int(line_diag[enrolid_idx]) > current_enrolid:
+            elif float(line_diag[enrolid_idx]) > current_enrolid:
                 pdb.set_trace()
                 print('Warning')
-            if int(line_proc[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_proc[enrolid_idx]):
+            if float(line_proc[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_proc[enrolid_idx]):
                     line_proc = procedures_file.readline()
                     line_proc = line_proc.split(',') 
-            elif int(line_proc[enrolid_idx]) > current_enrolid:
+            elif float(line_proc[enrolid_idx]) > current_enrolid:
                 pdb.set_trace()
                 print('Warning')                
 
@@ -234,10 +238,12 @@ def filter_patients_negatives(meds_path
         uneligs_file.write(','.join(['ENROLID', 'num_opioid_prescriptions', 'num_month_data_available']))  
         uneligs_file.write('\n')        
         # pdb.set_trace()
+        counter = 0
         for i in range(len(enrolids_all_unique)):
             current_enrolid = enrolids_all_unique[i]
-            if current_enrolid == 145267101:
-               pdb.set_trace()
+            counter+=1
+            if counter % display_step == 0:
+                print('Finished processing {} oud_no patinets out of {}'.format(counter, len(enrolids_all_unique)))
             line_med = medications_file.readline()
             line_med = line_med.split(',')
             line_diag = diagnoses_file.readline()
@@ -246,25 +252,25 @@ def filter_patients_negatives(meds_path
             line_proc = line_proc.split(',')
 
 
-            if int(line_med[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_med[enrolid_idx]):
+            if float(line_med[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_med[enrolid_idx]):
                     line_med = medications_file.readline()
                     line_med = line_med.split(',')  
-            elif int(line_med[enrolid_idx]) > current_enrolid:                       
+            elif float(line_med[enrolid_idx]) > current_enrolid:                       
                 pdb.set_trace()
                 print('Warning')
-            if int(line_diag[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_diag[enrolid_idx]):
+            if float(line_diag[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_diag[enrolid_idx]):
                     line_diag = diagnoses_file.readline()
                     line_diag = line_diag.split(',') 
-            elif int(line_diag[enrolid_idx]) > current_enrolid:
+            elif float(line_diag[enrolid_idx]) > current_enrolid:
                 pdb.set_trace()
                 print('Warning')
-            if int(line_proc[enrolid_idx]) < current_enrolid:
-                while current_enrolid > int(line_proc[enrolid_idx]):
+            if float(line_proc[enrolid_idx]) < current_enrolid:
+                while current_enrolid > float(line_proc[enrolid_idx]):
                     line_proc = procedures_file.readline()
                     line_proc = line_proc.split(',') 
-            elif int(line_proc[enrolid_idx]) > current_enrolid:
+            elif float(line_proc[enrolid_idx]) > current_enrolid:
                 pdb.set_trace()
                 print('Warning')                
             if current_enrolid == 145267101:
