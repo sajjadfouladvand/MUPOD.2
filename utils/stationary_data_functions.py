@@ -227,7 +227,7 @@ def create_stationary(meds_file
         
             # pdb.set_trace()
             current_patient_age = index_to_calc_age - float(line_demog[dob_idx])# np.round(((2009 - float(line_demog[dob_idx])) - min_age)/(max_age-min_age), 2 )
-            if current_patient_age <0:
+            if current_patient_age <0 or current_patient_age>150:
                 pdb.set_trace()
 
             current_patient_sex = float(line_demog[sex_idx])

@@ -98,12 +98,14 @@ def cohort_matching_big_data( demogs_oud_yes_path
                     , pos_to_negs_ratio
                     , k
                     ):
-    
+    # pdb.set_trace()
     match_based_on = ['DOB', 'NUM_MONTHLY_OPIOID_PRESCS', 'NUM_MONTHS_IN_DATA']
     
     demog_oud_yes_data = pd.read_csv(demogs_oud_yes_path)
     demog_oud_no_data = pd.read_csv(demogs_oud_no_path)
-
+    demog_oud_no_data_original = demog_oud_no_data.copy()
+    print('The valume of oud_no data in memorry is:')
+    print(demog_oud_no_data.memory_usage(index=True).sum())
     # Normalizing the demographic data (I will only use those that we matched based on)
     demog_oud_yes_data_filtered_normed, demog_oud_no_data_filtered_normed = normalize_min_max(demog_oud_yes_data[match_based_on]
                                                                                             , demog_oud_no_data[match_based_on])
@@ -122,7 +124,8 @@ def cohort_matching_big_data( demogs_oud_yes_path
     
     # ==== For SEX = 1 ===
     # Find the optimum number of clusters using KElbowVisualizer in Yellow Brick
-    elbow_range=30
+    elbow_range=50
+    fraction_of_cluster = 0.01
 
     model = KMeans()
     visualizer = KElbowVisualizer(model, k=(2,elbow_range))
@@ -147,10 +150,15 @@ def cohort_matching_big_data( demogs_oud_yes_path
 
     kmeans = KMeans(n_clusters=visualizer.elbow_value_, init='k-means++', max_iter=600, n_init=10, random_state=1234)
     pred_y = kmeans.fit_predict(demog_oud_yes_data_sex_1[match_based_on])
+    
     cluster_centers = pd.DataFrame(data=kmeans.cluster_centers_, columns=demog_oud_yes_data_sex_1[match_based_on].columns)
-
-    # Randomly select K (=30) oud_yes patients
     cluster_centers.to_csv('outputs/cluster_centers_sex1_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+    for i in range(visualizer.elbow_value_):
+        random_samples_from_cluster = demog_oud_yes_data_sex_1[match_based_on].iloc[pred_y==i].sample(frac=fraction_of_cluster, replace=False).copy(deep=True)
+        cluster_centers = pd.concat([cluster_centers, random_samples_from_cluster])
+    # pdb.set_trace()
+    cluster_centers.to_csv('outputs/cluster_centers_sampled_sex1_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+
     
     # Find the cosine similarity between all oud_no patients to the k anchors 
     similarities = cdist(cluster_centers, demog_oud_no_data_sex_1[match_based_on], metric='euclidean')
@@ -206,14 +214,20 @@ def cohort_matching_big_data( demogs_oud_yes_path
     # plt.savefig('results/visualization_results/kmeans_xcss_sex2_'+str(range_k)+'.png', dpi=600)
     # plt.close()
     # np.savetxt('wcss_list_sex2.csv', wcss_sex2)
-
+    # pdb.set_trace()
     kmeans = KMeans(n_clusters=visualizer.elbow_value_, init='k-means++', max_iter=600, n_init=10, random_state=1234)
     pred_y = kmeans.fit_predict(demog_oud_yes_data_sex_2[match_based_on])
     cluster_centers = pd.DataFrame(data=kmeans.cluster_centers_, columns=demog_oud_yes_data_sex_2[match_based_on].columns)
 
-    # Randomly select K (=30) oud_yes patients
     cluster_centers.to_csv('outputs/cluster_centers_sex2_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+    for i in range(visualizer.elbow_value_):
+        random_samples_from_cluster = demog_oud_yes_data_sex_2[match_based_on].iloc[pred_y==i].sample(frac=fraction_of_cluster, replace=False).copy(deep=True)
+        cluster_centers = pd.concat([cluster_centers, random_samples_from_cluster])
+    # pdb.set_trace()
+    cluster_centers.to_csv('outputs/cluster_centers_sampled_sex2_k_'+str(k)+'_ratio'+str(pos_to_negs_ratio)+'.csv', index=False)
+
     
+
     similarities_sex2 = cdist(cluster_centers, demog_oud_no_data_sex_2[match_based_on], metric='euclidean')
     
     # Compute the arithmetic/geometric mean of the K cosine similarities for all rows in D 
@@ -245,12 +259,12 @@ def cohort_matching_big_data( demogs_oud_yes_path
 
     print('-------- Finished matching-----------')    
     print("--- %s seconds ---" % (time.time() - start_time))  
-    #pdb.set_trace()
+    # pdb.set_trace()
     matched_oud_no_all = pd.concat([dist_to_anchor_oud_no_sex2[dist_to_anchor_oud_no_sex2['MATCHED']==1], dist_to_anchor_oud_no_sex1[dist_to_anchor_oud_no_sex1['MATCHED']==1]])
     dist_to_anchor_oud_no_sex1[dist_to_anchor_oud_no_sex1['MATCHED']==1].to_csv(demogs_oud_no_path[:-4]+'_matched_SEX1.csv', index=False)
     dist_to_anchor_oud_no_sex2[dist_to_anchor_oud_no_sex2['MATCHED']==1].to_csv(demogs_oud_no_path[:-4]+'_matched_SEX2.csv', index=False)
-
-    demog_oud_no_data[demog_oud_no_data.ENROLID.isin(matched_oud_no_all.ENROLID)].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)    
+    # pdb.set_trace()
+    demog_oud_no_data_original[demog_oud_no_data_original.ENROLID.isin(matched_oud_no_all.ENROLID)].to_csv(demogs_oud_no_path[:-4]+'_matched.csv', index=False)    
     return demogs_oud_no_path[:-4]+'_matched.csv'
 
 def cohort_matching( demogs_oud_yes_path
