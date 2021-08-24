@@ -4,17 +4,19 @@ Place the prescriptions, diagnoses, procedures and demographics data for both OU
 ```
 python 1_sort_records.py
 ```
-Run the follwoing script for both OUD-positive and OUD-negative to convert the data into an enrollee-time matrix X(P,T,F), where P is the complete set of enrollees in the data, T is the set of time steps between Jan 2009 and Dec 2018 (by month) and F is the feature set, each vector x_ij records the medications/diagnoses/procedures an enrollee p_i took at time t_j. Arguments ```cohort``` can be used to apply the script on OUD-positive (```---cohort oud_yes```) and OUD-negative (```--cohort oud_no```) cohorts.
+As a result, sorted files are created under the "data/" directory. All sorted files are indicated by "_sorted" at the end of the file name. Run the follwoing script for both OUD-positive and OUD-negative to convert the data into an enrollee-time matrix X(P,T,F), where P is the complete set of enrollees in the data, T is the set of time steps between Jan 2009 and Dec 2018 (by month) and F is the feature set, each vector x_ij records the medications/diagnoses/procedures an enrollee p_i took at time t_j. Arguments ```cohort``` can be used to apply the script on OUD-positive (```---cohort oud_yes```) and OUD-negative (```--cohort oud_no```) cohorts.
 ```
 python 2_main_extract_streams.py --cohort oud_yes
 python 2_main_extract_streams.py --cohort oud_no
 ```
-Run the follwoing scripts to filter patients based on: 1) Minimum number of months that the patinet has been in the data. The argument to tune this is ```min_month_available``` and the default value is is 12, 2) Minimum number of months that the patinet has been prescribed with at least one Opioid medication (other than Buprenorphine or Methadone). The argument to set this is ```min_num_opioid``` and the default value is 3, 3)Prediction window size. The argument value to tune this feature is prediction_win_size and the default value is 6.
+As a result medications, diagnoses and procedures streams are extracted and saved under the directory "outputs/". Run the follwoing scripts to filter patients based on: 1) Minimum number of months that the patinet has been in the data. The argument to tune this is ```min_month_available``` and the default value is is 12, 2) Minimum number of months that the patinet has been prescribed with at least one Opioid medication (other than Buprenorphine or Methadone). The argument to set this is ```min_num_opioid``` and the default value is 3, 3)Prediction window size. The argument value to tune this feature is prediction_win_size and the default value is 6.
 ```
 3_main_filter_patients.py --cohort oud_no
 3_main_filter_patients.py --cohort oud_yes
 ```
-Follwoing command performs multiple tasks: 1) It first apply a cohort matching. This function matches OUD-negatives with OUD-positives based on patinets sex, date of birth, number of months they have been prescribed with at least one Opioid (other than Buprenorphine or Methadone) and the total number of months they have been in the data. Argument ```pos_to_negs_ratio``` can be utilized to set how many OUD-negative samples should be selected for each OUD-positive sample. Note, this code uses cosine similarity to find best matches. 
+As a result, medications, diagnoses, procedures and demographics streams are filtered and only patients who met the above criteria will be included. The resulted files will be save under the directory "outputs/" and the new files are indicated with "_eligible" at the end of the file names. 
+
+The Follwoing command is the next command that should be executed and it performs multiple tasks: 1) It first apply a cohort matching. This function matches OUD-negatives with OUD-positives based on patinets sex, date of birth, number of months they have been prescribed with at least one Opioid (other than Buprenorphine or Methadone) and the total number of months they have been in the data. Argument ```pos_to_negs_ratio``` can be utilized to set how many OUD-negative samples should be selected for each OUD-positive sample. Note, this code uses K-means clustering and anchor based methods to find best matches. 
 ```
 python 4_main_match_and_split.py 
 ```
@@ -40,4 +42,3 @@ The results will be stored under ```/results/classical_ml_models```.
 <h1 style="font-size:60px;">3. Long Short Term Memory and Transformer</h1>
 
 <h1 style="font-size:60px;">4. MUPOD</h1>
-
