@@ -27,6 +27,7 @@ Here is a list of argument that can be used to apply different constrains:
 ```matched```: If  ```matched=1``` then the matched negative cohort will be used to create train, validation and test. 
 
 ```prediction_win_size```: set the prediction window size. The default value is 6 months. For the OUD-positive patinets, all the data within a window of 6 month prior to the diagnoses date is erased. For the OUD-negative cohort, all the data within a window of 6 month prior to the patient's last record in the data will eb erased.
+
 <h1 style="font-size:60px;">2. Classical Machine Learning Models</h1>
 Run the following commands to create stationary train, validation and test data. Argument ```fold_name``` can be used to produce train, validation and test data seperately:
 ```
@@ -34,9 +35,28 @@ python 5_main_create_stationary_data.py --fold_name train
 python 5_main_create_stationary_data.py --fold_name validation
 python 5_main_create_stationary_data.py --fold_name test
 ```
-After creating the stationary data, you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. 
+After creating the stationary data, you can use the same script to normalize the train, validation and test data using min-max normalization:
+
 ```
-6_main_classical_ml_models.py 
+python 5_main_create_stationary_data.py --normalization min_max
+```
+As a result, train, validation and test sets are normalized and saved under the "outputs/" directory. These files are indicated by "_stationary_normalized.csv" at the end of train, validation and test sets file names. At this point you can use the fillowing scripts to compute some basic statistics on the data:
+```
+python viz/visualize_stationary_data.py --compute_stat 1
+```
+For visualizing the data using tSNE method (pca is also available):
+```
+python viz/visualize_stationary_data.py --viz_method tsne
+```
+If you wish to see the frequency of the features you can run this comamnd. This script will produce bar diagrams of feature frequencies for medication, diagnoses and procedures seperately under the "results/visualization_results/":
+```
+python viz/visualize_stationary_data.py --plot_feature_dist_flag 1
+```
+The following command can then be used to perform feature selection using the frequencies calculated in the previous step. This will produce three files indicated by "__features_filtered.csv" under the "results/visualization_results/" directory for medications, diagnoses and procedures. Each file includes selected features. Furtheremore 
+
+Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. 
+```
+6_main_classical_ml_models.py --ml_model rf
 ```
 The results will be stored under ```/results/classical_ml_models```. 
 <h1 style="font-size:60px;">3. Long Short Term Memory and Transformer</h1>
