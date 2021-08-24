@@ -30,11 +30,13 @@ Here is a list of argument that can be used to apply different constrains:
 
 <h1 style="font-size:60px;">2. Classical Machine Learning Models</h1>
 Run the following commands to create stationary train, validation and test data. Argument ```fold_name``` can be used to produce train, validation and test data seperately:
+
 ```
 python 5_main_create_stationary_data.py --fold_name train
 python 5_main_create_stationary_data.py --fold_name validation
 python 5_main_create_stationary_data.py --fold_name test
 ```
+
 After creating the stationary data, you can use the same script to normalize the train, validation and test data using min-max normalization:
 
 ```
