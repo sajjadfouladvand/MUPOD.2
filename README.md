@@ -52,13 +52,26 @@ If you wish to see the frequency of the features you can run this comamnd. This 
 ```
 python viz/visualize_stationary_data.py --plot_feature_dist_flag 1
 ```
-The following command can then be used to perform feature selection using the frequencies calculated in the previous step. This will produce three files indicated by "__features_filtered.csv" under the "results/visualization_results/" directory for medications, diagnoses and procedures. Each file includes selected features. Furtheremore 
+The following command can then be used to perform feature selection using the frequencies calculated in the previous step. This will produce three files indicated by "__features_filtered.csv" under the "results/visualization_results/" directory for medications, diagnoses and procedures. Each file includes selected features. Furtheremore, this command will generate train, validation and test files after performing feature selection and the resulted files can be found under the "outputs/" directory and are indicated by "_stationary_normalized_features_filtered.csv" in their file names.  
 
-Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. 
+Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. Furtheremore, the argument "feature_selection" can be used to train and test the models using the data generated after performing feature selection in the previous step.
 ```
-6_main_classical_ml_models.py --ml_model rf
+6_main_classical_ml_models.py --ml_model rf --feature_selection 1
 ```
 The results will be stored under ```/results/classical_ml_models```. 
-<h1 style="font-size:60px;">3. Long Short Term Memory and Transformer</h1>
+<h1 style="font-size:60px;">3. Long Short Term Memory</h1>
+The first step is to shuffle the train, validation and test sets:
+```
+python main_multi_hot_shuffle.py --shuffle 1
+```
+the shuffled train, validation and test data are stored under the "outputs/" directory and indicated by "_shuffled.csv". Then, run the following command to format the train, validation and test data into multi-hot vectors and prepare them for training a Long Short Term Memory model:
+
+```
+python main_multi_hot_shuffle.py --fold_name train --feature_selection 1
+python main_multi_hot_shuffle.py --fold_name validation --feature_selection 1
+python main_multi_hot_shuffle.py --fold_name test --feature_selection 1
+```
+ 
+<h1 style="font-size:60px;">4. MUPOD</h1>
 
 <h1 style="font-size:60px;">4. MUPOD</h1>
