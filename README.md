@@ -71,7 +71,7 @@ python main_multi_hot_shuffle.py --fold_name train --feature_selection 1
 python main_multi_hot_shuffle.py --fold_name validation --feature_selection 1
 python main_multi_hot_shuffle.py --fold_name test --feature_selection 1
 ```
- 
-<h1 style="font-size:60px;">4. MUPOD</h1>
+
+<h1 style="font-size:60px;">4. Transformer</h1>
 
 <h1 style="font-size:60px;">4. MUPOD</h1>
