@@ -56,6 +56,10 @@ python viz/visualize_stationary_data.py --plot_feature_dist_flag 1
 ```
 The following command can then be used to perform feature selection using the frequencies calculated in the previous step. This will produce three files indicated by "__features_filtered.csv" under the "results/visualization_results/" directory for medications, diagnoses and procedures. Each file includes selected features. Furtheremore, this command will generate train, validation and test files after performing feature selection and the resulted files can be found under the "outputs/" directory and are indicated by "_stationary_normalized_features_filtered.csv" in their file names.  
 
+```
+python viz/visualize_stationary_data.py --feature_selection 1
+```
+
 Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. Furtheremore, the argument "feature_selection" can be used to train and test the models using the data generated after performing feature selection in the previous step.
 ```
 6_main_classical_ml_models.py --ml_model rf --feature_selection 1
