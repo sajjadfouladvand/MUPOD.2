@@ -65,12 +65,17 @@ Now you can run the follwoing command to train, validate and test classical mach
 6_main_classical_ml_models.py --ml_model rf --feature_selection 1
 ```
 The results will be stored under ```/results/classical_ml_models```. 
+
 <h1 style="font-size:60px;">3. Long Short Term Memory</h1>
+
 The first step is to shuffle the train, validation and test sets:
+
 ```
 python main_multi_hot_shuffle.py --shuffle 1
 ```
-the shuffled train, validation and test data are stored under the "outputs/" directory and indicated by "_shuffled.csv". Then, run the following command to format the train, validation and test data into multi-hot vectors and prepare them for training a Long Short Term Memory model:
+
+The shuffled train, validation and test data are stored under the "outputs/" directory and indicated by "_shuffled.csv". Then, run the following command to format the train, validation and test data into multi-hot vectors and prepare them for training a Long Short Term Memory model:
+
 
 ```
 python main_multi_hot_shuffle.py --fold_name train --feature_selection 1
