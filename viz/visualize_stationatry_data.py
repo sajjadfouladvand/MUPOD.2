@@ -12,11 +12,15 @@ parser.add_argument("--viz_method", type=str, default="none", choices = ["pca","
 parser.add_argument("--features_to_show", type=str, default="meds_diags_procs", choices = ["meds_diags_procs","all"])    
 parser.add_argument("--sampled", type=int, default=1, choices = [0,1])    
 parser.add_argument("--sample_size", type=int, default=2000)    
+parser.add_argument("--sample_size_for_shap", type=float, default=0.01)  
 parser.add_argument("--perplex", type=int, default=20)    
 parser.add_argument("--num_it", type=int, default=2000)    
 parser.add_argument("--lr_rate", type=int, default=200)    
 
 parser.add_argument("--compute_stat", type=int, default=0, choices = [0,1])    
+parser.add_argument("--feature_selection", type=int, default=0, choices = [0,1])    
+parser.add_argument("--plot_shaps", type=int, default=0, choices = [0,1])    
+
 parser.add_argument("--plot_feature_dist_flag", type=int, default=0, choices = [0,1])    
 # parser.add_argument("--compute_shap", type=int, default=0, choices = [0,1])    
 # parser.add_argument("--rf_model_path", type=str, default="results/classical_ml_models/rf_model.pkl")    
@@ -34,6 +38,13 @@ parser.add_argument("--train_demographics_filename", type=str, default="outputs/
 parser.add_argument("--validation_demographics_filename", type=str, default="outputs/validation_demographics.csv")
 parser.add_argument("--test_demographics_filename", type=str, default="outputs/test_demographics.csv")    
 
+parser.add_argument("--train_stationary_normalized_filtered_filename", type=str, default="outputs/train_stationary_normalized_features_filtered.csv")    
+parser.add_argument("--validation_stationary_normalized_filtered_filename", type=str, default="outputs/validation_stationary_normalized_features_filtered.csv")
+parser.add_argument("--test_stationary_normalized_filtered_filename", type=str, default="outputs/test_stationary_normalized_features_filtered.csv")    
+
+parser.add_argument("--hist_meds_filepath", type=str, default="results/visualization_results/hist_stationary_meds_features_freq.csv")    
+parser.add_argument("--hist_diags_filepath", type=str, default="results/visualization_results/hist_stationary_diags_features_freq.csv")
+parser.add_argument("--hist_procs_filepath", type=str, default="results/visualization_results/hist_stationary_procs_features_freq.csv")    
 
 if parser.parse_args().viz_method == "tsne":
     args = parser.parse_args()
@@ -83,6 +94,30 @@ if parser.parse_args().plot_feature_dist_flag == 1:
                         , args.test_stationary_filename 
                         )
 else:
-    print('Warning: you have chosen to not apply SHAP.')    
+    print('Warning: you have chosen to not compute feature distributions.')    
+
+if parser.parse_args().feature_selection == 1:
+    args = parser.parse_args()
+    vis_tools.feature_selection_dists(args.hist_meds_filepath 
+                        , args.hist_diags_filepath     
+                        , args.hist_procs_filepath 
+                        , args.train_stationary_filename 
+                        , args.validation_stationary_filename     
+                        , args.test_stationary_filename  
+                        )
+else:
+    print('Warning: you have chosen to not perform feature selection.')    
 
 
+if parser.parse_args().plot_shaps == 1:
+    args = parser.parse_args()
+    vis_tools.plot_shaps(args.train_stationary_normalized_filtered_filename
+                        , args.validation_stationary_normalized_filtered_filename
+                        , args.test_stationary_normalized_filtered_filename
+                        , args.hist_meds_filepath 
+                        , args.hist_diags_filepath     
+                        , args.hist_procs_filepath     
+                        , args.sample_size_for_shap                    
+        )
+else:
+    print('Warning: you have chosen not to perform SHAP plots.')  

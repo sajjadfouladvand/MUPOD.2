@@ -184,14 +184,14 @@ def random_forest_model(train_data_path
     # test_data_shuffled = shuffle(test_data, random_state=123)
     
     # saving patinets IDs
-    training_all_shuffled['ENROLID'].to_csv('results/classical_ml_models/enrolids_training_all_shuffled.csv', index=False)
-    test_data_shuffled['ENROLID'].to_csv('results/classical_ml_models/enrolids_training_all_shuffled.csv', index=False)
+    training_all_shuffled['ENROLID'].to_csv('saved_classical_ml_models/enrolids_train_all_shuffled_rf.csv', index=False)
+    test_data_shuffled['ENROLID'].to_csv('saved_classical_ml_models/enrolids_test_all_shuffled_rf.csv', index=False)
     # pdb.set_trace()
     randomCV = RandomizedSearchCV(estimator=RandomForestClassifier(n_jobs=-1, warm_start=True, verbose=1), param_distributions=hyperparameters, n_iter=20, cv=3,scoring="f1")
     randomCV.fit(training_all_shuffled.iloc[:,1:-1], training_all_shuffled['Label'])
     # pdb.set_trace()
     # === Save models
-    with open('results/classical_ml_models/rf_model.pkl','wb') as f:
+    with open('saved_classical_ml_models/rf_model.pkl','wb') as f:
         pickle.dump(randomCV,f)
     
     (pd.DataFrame.from_dict(data=randomCV.best_params_, orient='index').to_csv('results/classical_ml_models/best_params_rf.csv', header=False))
@@ -204,6 +204,7 @@ def random_forest_model(train_data_path
     # fig.get_figure().savefig("results/classical_ml_models/feature_importance.png", dpi=300)
 
     rf_predictions = best_rf_model.predict(test_data_shuffled.iloc[:,1:-1])    
+    np.savetxt('saved_classical_ml_models_predictions_rf.csv', rf_predictions, delimiter=',')
 
     tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc = performance_evaluation(rf_predictions
                                                                             , test_data_shuffled
@@ -274,11 +275,15 @@ def logistic_regression(train_data_path
     test_data = test_data.sample(frac=1).reset_index(drop=True)
 
     # saving patients
-    training_all['ENROLID'].to_csv('results/classical_ml_models/enrolids_training_all_shuffled.csv', index=False)
-    test_data['ENROLID'].to_csv('results/classical_ml_models/enrolids_training_all_shuffled.csv', index=False)
+    training_all['ENROLID'].to_csv('saved_classical_ml_models/enrolids_train_all_shuffled_lr.csv', index=False)
+    test_data['ENROLID'].to_csv('saved_classical_ml_models/enrolids_test_all_shuffled_lr.csv', index=False)
     
     randomCV = RandomizedSearchCV(estimator=LogisticRegression(n_jobs=-1, verbose=1), param_distributions=hyperparameters, n_iter=20, cv=3,scoring="f1")
     randomCV.fit(training_all.iloc[:,1:-1], training_all['Label'])
+
+    # === Save models
+    with open('saved_classical_ml_models/lr_model.pkl','wb') as f:
+        pickle.dump(randomCV,f)
     # pdb.set_trace()
     (pd.DataFrame.from_dict(data=randomCV.best_params_, orient='index').to_csv('results/classical_ml_models/best_params_lr.csv', header=False))
     best_lr_model= randomCV.best_estimator_
@@ -290,7 +295,7 @@ def logistic_regression(train_data_path
     # fig.get_figure().savefig("results/classical_ml_models/feature_importance.png", dpi=300)
 
     lr_predictions = best_lr_model.predict(test_data.iloc[:,1:-1])    
-
+    np.savetxt('saved_classical_ml_models/predictions_lr.csv', lr_predictions, delimiter=',')
     tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc = performance_evaluation(lr_predictions
                                                                             , test_data
                                                                             , best_lr_model
@@ -299,30 +304,6 @@ def logistic_regression(train_data_path
                 accuracy, precision, recall, specificity
                 , F1, rf_test_auc
                 , 'lr')
-    pdb.set_trace()
-    print('Computing shap values....')
-    explainer = shap.Explainer(best_lr_model)
-    shap_values = explainer(training_all.iloc[:,1:-1])
-    print('Finished computing shap values....')
-
-    print('Plotting waterfall')
-    shap.plots.waterfall(shap_values[0])
-    plt.savefig('results/classical_ml_models/waterfall_lr.png', dpi=600)
-    plt.close()    
-
-    print('Plotting beeswarm')
-    shap.plots.beeswarm(shap_values)
-    plt.savefig('results/classical_ml_models/beeswarm_lr.png', dpi=600)
-    plt.close()
-
-    print('Saving shap values in a pickle')
-    with open('results/classical_ml_models/shap_values_lr.pkl','wb') as f:
-        pickle.dump(shap_values,f)    
-
-    print('Plotting abs of shap values in a bar diagram')
-    shap.plots.bar(shap_values)
-            
-    print('End')    
 
 def support_vector_machine(train_data_path
                         , validation_data_path

@@ -27,11 +27,11 @@ data = pd.concat([data_pos_sampled, data_neg_sampled])
 
 data=data.sample(frac=1)
 
-pdb.set_trace()
+# pdb.set_trace()
 data_pos = data[data['Label']==1]
-data_pos_filtered = data_pos["'65'"].to_numpy()
+data_pos_filtered = data_pos['65_tcgp_2digit'].to_numpy()
 data_negs = data[data['Label']==0]
-data_negs_filtered = data_negs["'65'"].to_numpy()
+data_negs_filtered = data_negs['65_tcgp_2digit'].to_numpy()
 
 
 data_filtered_all = np.zeros((len(data_pos_filtered), 2))

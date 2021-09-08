@@ -11,24 +11,38 @@ import random
 from sklearn import metrics
 from keras import regularizers
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 tf.keras.backend.clear_session()
 random.seed(time.clock())
 
+# === File names
+validation_filename_meds='outputs/validation_meds_represented.csv'
+validation_filename_diags='outputs/validation_diags_represented.csv'
+validation_filename_procs='outputs/validation_procs_represented.csv'
+validation_filename_demogs='outputs/validation_demographics_multihot.csv'
+
+train_filename_meds='outputs/train_meds_represented.csv'
+train_filename_diags='outputs/train_diags_represented.csv'
+train_filename_procs = 'outputs/train_procs_represented.csv'
+train_filename_demogs = 'outputs/train_demographics_multihot.csv'
+
+print('WARNING: YOU ARE USING FIRST 100 SAMPLLES')
+# n_temp =100
 # ==== constants
-d_model=16
-dff = 16
+d_model=48
+dff = 48
 input_vocab_size = 8500
 target_vocab_size = 8000
-d_meds=10
-d_diags=10
+d_meds=16
+d_diags=16
+d_procs=16
 d_demogs=2
 zero=0
-num_time_steps = 120
+num_time_steps = 138
 num_classes=2
 one=1
 two=2
-num_thresholds=100
+num_thresholds=1000
 
 # ======================= Generating a set of model parameters randomely
 learning_rate_pool =[0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001]
@@ -39,13 +53,13 @@ dropout_rate_pool=[0.3, 0.4, 0.5, 0.6]
 regularization_factor_pool = [0.0000001, 0.000001, 0.00001, 0.0001, 0.001]
 num_heads_pool = [1,2,4,8]
 
-learning_rate=random.choice(learning_rate_pool)
-num_layers=random.choice(num_layers_pool)
-BATCH_SIZE=random.choice(BATCH_SIZE_pool)
-dropout_rate=random.choice(dropout_rate_pool)
-EPOCHS=random.choice(EPOCHS_pool)
-regu_factor =random.choice(regularization_factor_pool)
-num_heads = random.choice(num_heads_pool)
+learning_rate= 0.001#random.choice(learning_rate_pool)
+num_layers=4#random.choice(num_layers_pool)
+BATCH_SIZE=256#random.choice(BATCH_SIZE_pool)
+dropout_rate=0.3#random.choice(dropout_rate_pool)
+EPOCHS=10#random.choice(EPOCHS_pool)
+regu_factor = 0.000001#random.choice(regularization_factor_pool)
+num_heads = 4#random.choice(num_heads_pool)
 
 # ========= A function to read the data streams
 class ReadingData(object):
@@ -59,8 +73,6 @@ class ReadingData(object):
         s=[]
         temp=[]
         with open(path_t) as f:
-              if path_t == 'validation_demogs_shuffled_balanced.csv' or path_t=='training_demogs_shuffled_balanced.csv':
-                next(f)
               for line in f:                   
                   d_temp=line.split(',')
                   d_temp=[float(x) for x in d_temp]
@@ -79,6 +91,13 @@ class ReadingData(object):
             batch_data = batch_data + (self.data[0:(batch_size - len(batch_data))])       
         self.batch_id = min(self.batch_id + batch_size, len(self.data))
         return batch_data
+
+def find_divisables(n):
+  divisables = []
+  for i in range(n):
+    if n%(i+1) == 0:
+      divisables.append(i+1)
+  return divisables    
 
 # ==== Original function from the Transformer code by Google. This code is part of the positional encoding mechanism
 def get_angles(pos, i, d_model):
@@ -102,7 +121,7 @@ def positional_encoding(position, d_model):
 
 
 # ==== This fnction masks the information after the last visit of the patients
-def create_padding_mask(meds, diags): 
+def create_padding_mask(meds, diags, procs): 
   """
   Inputs are medication and diagnoses streams 
   This function finds the maximum index where the features (for either medication or diagnoses) 
@@ -112,6 +131,7 @@ def create_padding_mask(meds, diags):
   for i in range(meds.shape[0]):
     meds_non_zero_map = np.equal(meds[i],0).all(axis=1)
     diags_non_zero_map = np.equal(diags[i],0).all(axis=1)
+    procs_non_zero_map = np.equal(procs[i],0).all(axis=1)
     if np.where(meds_non_zero_map==True)[0].size !=0:
       meds_zero_start = np.where(meds_non_zero_map==True)[0][0]
     else:
@@ -120,7 +140,11 @@ def create_padding_mask(meds, diags):
       diags_zero_start = np.where(diags_non_zero_map==True)[0][0]
     else:
       diags_zero_start =  num_time_steps-1
-    seq[i][max(meds_zero_start, diags_zero_start):]=0
+    if np.where(procs_non_zero_map==True)[0].size != 0:
+      procs_zero_start = np.where(procs_non_zero_map==True)[0][0]
+    else:
+      procs_zero_start =  num_time_steps-1      
+    seq[i][max(meds_zero_start, diags_zero_start, procs_zero_start):]=0
   seq=tf.math.reduce_sum(seq, axis=2)
   seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
   return seq[:, tf.newaxis, tf.newaxis, :]  
@@ -137,6 +161,7 @@ def scaled_dot_product_attention(v,k,q,mask):
   Returns:
     output, attention_weights
   """
+  # pdb.set_trace()
   matmul_qk = tf.matmul(q, k, transpose_b=True)  # (..., seq_len_q, seq_len_k)
   
   # scale matmul_qk
@@ -175,6 +200,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     self.wdk = tf.keras.layers.Dense(d_model)
     self.wdv = tf.keras.layers.Dense(d_model)
 
+    self.wpq = tf.keras.layers.Dense(d_model)
+    self.wpk = tf.keras.layers.Dense(d_model)
+    self.wpv = tf.keras.layers.Dense(d_model)
+
     self.dense = tf.keras.layers.Dense(d_model)
   def split_heads(self, x, batch_size):
     """Split the last dimension into (num_heads, depth).
@@ -182,8 +211,8 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     x = tf.reshape(x, (batch_size, -1, self.num_heads, self.depth))
     return tf.transpose(x, perm=[0, 2, 1, 3])
     
-  def call(self, medications, diagnoses, mask):
-   
+  def call(self, medications, diagnoses, procedures, mask):
+    # pdb.set_trace()
     batch_size = tf.shape(medications)[0]
 
     # ===== Creating q, k, v for both medications and diagnoses streams using different dense layers 
@@ -193,7 +222,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
     diagnoses_q = self.wdq(diagnoses)  
     diagnoses_k = self.wdk(diagnoses)  
-    diagnoses_v = self.wdv(diagnoses)  
+    diagnoses_v = self.wdv(diagnoses)
+
+    procedures_q = self.wpq(procedures)  
+    procedures_k = self.wpk(procedures)  
+    procedures_v = self.wpv(procedures)
     
     medications_q = self.split_heads(medications_q, batch_size)  
     medications_k = self.split_heads(medications_k, batch_size)  
@@ -204,7 +237,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     diagnoses_k = self.split_heads(diagnoses_k, batch_size)  
     diagnoses_v = self.split_heads(diagnoses_v, batch_size) 
 
-
+    procedures_q = self.split_heads(procedures_q, batch_size)  
+    procedures_k = self.split_heads(procedures_k, batch_size)  
+    procedures_v = self.split_heads(procedures_v, batch_size) 
+    # pdb.set_trace()
    # ====== Calculating Z_MM: the attention weights and final outputs for Medications-Medications interaction. 
     scaled_attention_MM, attention_weights_MM = scaled_dot_product_attention(medications_v, medications_k, medications_q, mask)
     scaled_attention_MM = tf.transpose(scaled_attention_MM, perm=[0, 2, 1, 3])  
@@ -219,6 +255,13 @@ class MultiHeadAttention(tf.keras.layers.Layer):
                                   (batch_size, -1, self.d_model))  
     output_MD = self.dense(concat_attention_MD)  
 
+  #======================= Calculating Z_MP: the attention weights and final outputs for Medication-Procedures interaction. 
+    scaled_attention_MP, attention_weights_MP = scaled_dot_product_attention(procedures_v, procedures_k, medications_q, mask)
+    scaled_attention_MP = tf.transpose(scaled_attention_MP, perm=[0, 2, 1, 3]) 
+    concat_attention_MP = tf.reshape(scaled_attention_MP, 
+                                  (batch_size, -1, self.d_model))  
+    output_MP = self.dense(concat_attention_MP)
+
   #======================= Calculating Z_DD: the attention weights and final outputs for Diagnoses-Diagnoses interaction. 
     scaled_attention_DD, attention_weights_DD = scaled_dot_product_attention(diagnoses_v, diagnoses_k, diagnoses_q, mask)
     scaled_attention_DD = tf.transpose(scaled_attention_DD, perm=[0, 2, 1, 3]) 
@@ -226,7 +269,23 @@ class MultiHeadAttention(tf.keras.layers.Layer):
                                   (batch_size, -1, self.d_model))  
     output_DD = self.dense(concat_attention_DD)  
 
-    return output_MM, attention_weights_MM, output_MD, attention_weights_MD, output_DD, attention_weights_DD
+  #======================= Calculating Z_DP: the attention weights and final outputs for Diagnoses-Procedures interaction. 
+    scaled_attention_DP, attention_weights_DP = scaled_dot_product_attention(procedures_v, procedures_k, diagnoses_q, mask)
+    scaled_attention_DP = tf.transpose(scaled_attention_DP, perm=[0, 2, 1, 3]) 
+    concat_attention_DP = tf.reshape(scaled_attention_DP, 
+                                  (batch_size, -1, self.d_model))  
+    output_DP = self.dense(concat_attention_DP)
+
+
+  #======================= Calculating Z_PP: the attention weights and final outputs for Procedures-Procedures interaction. 
+    scaled_attention_PP, attention_weights_PP = scaled_dot_product_attention(procedures_v, procedures_k, procedures_q, mask)
+    scaled_attention_PP = tf.transpose(scaled_attention_PP, perm=[0, 2, 1, 3]) 
+    concat_attention_PP = tf.reshape(scaled_attention_PP, 
+                                  (batch_size, -1, self.d_model))  
+    output_PP = self.dense(concat_attention_PP)  
+
+
+    return output_MM, attention_weights_MM, output_MD, attention_weights_MD, output_MP, attention_weights_MP, output_DD, attention_weights_DD, output_DP, attention_weights_DP, output_PP, attention_weights_PP
 
 def point_wise_feed_forward_network(d_model, dff):
   return  tf.keras.Sequential([
@@ -255,10 +314,12 @@ class EncoderLayer(tf.keras.layers.Layer):
     
     self.M_hat = tf.keras.layers.Dense(num_time_steps * d_model)
     self.D_hat = tf.keras.layers.Dense(num_time_steps * d_model)
+    self.P_hat = tf.keras.layers.Dense(num_time_steps * d_model)
 
-  def call(self, medications, diagnoses, training, mask):
+  def call(self, medications, diagnoses, procedures, training, mask):
+    # pdb.set_trace()
     batch_size = tf.shape(medications)[0]
-    output_MM, attention_weights_MM, output_MD, attention_weights_MD, output_DD, attention_weights_DD = self.mha(medications,diagnoses, mask)  # (batch_size, input_seq_len, d_model)
+    output_MM, attention_weights_MM, output_MD, attention_weights_MD, output_MP, attention_weights_MP, output_DD, attention_weights_DD, output_DP, attention_weights_DP, output_PP, attention_weights_PP = self.mha(medications,diagnoses, procedures, mask)  # (batch_size, input_seq_len, d_model)
     
     #============ dropout, normalization, feed forward, dropout and normalization. Inspired by the original idea in Transformers
     output_MM = self.dropout1(output_MM, training=training)
@@ -274,18 +335,41 @@ class EncoderLayer(tf.keras.layers.Layer):
     ffn_output_MD_1 = self.dropout2(ffn_output_MD_1, training=training)
     output_MD_2 = self.layernorm2(output_MD_1 + ffn_output_MD_1) 
 
+    average_MP= tf.divide(tf.math.add_n([medications, procedures]), 2)
+    output_MP = self.dropout1(output_MP, training=training)
+    output_MP_1 = self.layernorm1(average_MP + output_MP)    
+    ffn_output_MP_1 = self.ffn(output_MP_1)  
+    ffn_output_MP_1 = self.dropout2(ffn_output_MP_1, training=training)
+    output_MP_2 = self.layernorm2(output_MP_1 + ffn_output_MP_1)     
+
     output_DD = self.dropout1(output_DD, training=training)
     output_DD_1 = self.layernorm1(diagnoses + output_DD)      
     ffn_output_DD_1 = self.ffn(output_DD_1)  
     ffn_output_DD_1 = self.dropout2(ffn_output_DD_1, training=training)
     output_DD_2 = self.layernorm2(output_DD_1 + ffn_output_DD_1)  
-    
-    # ===== Concatenating all outputs related to the medication stream 
-    concatenated_outputs_forM = tf.concat([output_MM_2, output_MD_2], axis=2) 
-    # ===== Concatenating all outputs related to the diagnoses stream             
-    concatenated_outputs_forD = tf.concat([output_MD_2, output_DD_2], axis=2)         
 
-    dimension_after_reshape_for_dense = num_time_steps * (d_model + d_model)
+    average_DP= tf.divide(tf.math.add_n([diagnoses, procedures]), 2)
+    output_DP = self.dropout1(output_DP, training=training)
+    output_DP_1 = self.layernorm1(average_DP + output_DP)    
+    ffn_output_DP_1 = self.ffn(output_DP_1)  
+    ffn_output_DP_1 = self.dropout2(ffn_output_DP_1, training=training)
+    output_DP_2 = self.layernorm2(output_DP_1 + ffn_output_DP_1)     
+    
+    output_PP = self.dropout1(output_PP, training=training)
+    output_PP_1 = self.layernorm1(procedures + output_PP)      
+    ffn_output_PP_1 = self.ffn(output_PP_1)  
+    ffn_output_PP_1 = self.dropout2(ffn_output_PP_1, training=training)
+    output_PP_2 = self.layernorm2(output_PP_1 + ffn_output_PP_1) 
+
+    # ===== Concatenating all outputs related to the medication stream 
+    concatenated_outputs_forM = tf.concat([output_MM_2, output_MD_2, output_MP_2], axis=2) 
+    # ===== Concatenating all outputs related to the diagnoses stream             
+    concatenated_outputs_forD = tf.concat([output_MD_2, output_DD_2, output_DP_2], axis=2)         
+
+    # ===== Concatenating all outputs related to the diagnoses stream             
+    concatenated_outputs_forP = tf.concat([output_MP_2, output_DP_2, output_PP_2], axis=2)  
+
+    dimension_after_reshape_for_dense = num_time_steps * (d_model + d_model + d_model)
     concatenated_outputs_forM_reshaped = tf.reshape(concatenated_outputs_forM, (batch_size, dimension_after_reshape_for_dense))
     medications_hat_reshaped = self.M_hat(concatenated_outputs_forM_reshaped)
     # === medications_hat is the output of the encoder
@@ -294,8 +378,13 @@ class EncoderLayer(tf.keras.layers.Layer):
     concatenated_outputs_forD_reshaped = tf.reshape(concatenated_outputs_forD, (batch_size, dimension_after_reshape_for_dense))
     diagnoses_hat_reshaped = self.D_hat(concatenated_outputs_forD_reshaped)
     # === diagnoses_hat is the output of the encoder    
-    diagnoses_hat =  tf.reshape(diagnoses_hat_reshaped, (batch_size, num_time_steps, d_model))    
-    return medications_hat, diagnoses_hat
+    diagnoses_hat =  tf.reshape(diagnoses_hat_reshaped, (batch_size, num_time_steps, d_model)) 
+
+    concatenated_outputs_forP_reshaped = tf.reshape(concatenated_outputs_forP, (batch_size, dimension_after_reshape_for_dense))
+    procedures_hat_reshaped = self.P_hat(concatenated_outputs_forP_reshaped)
+    # === diagnoses_hat is the output of the encoder    
+    procedures_hat =  tf.reshape(procedures_hat_reshaped, (batch_size, num_time_steps, d_model))        
+    return medications_hat, diagnoses_hat, procedures_hat
 
 class Encoder(tf.keras.layers.Layer):
   def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, 
@@ -312,18 +401,22 @@ class Encoder(tf.keras.layers.Layer):
   
     self.dropout = tf.keras.layers.Dropout(rate)
         
-  def call(self, x_1, x_2, training, mask):
+  def call(self, x_1, x_2, x_3, training, mask):
+    # pdb.set_trace()
     seq_len = tf.shape(x_1)[1]
     x_1 *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
     x_2 *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    x_3 *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
     x_1 += self.pos_encoding[:, :seq_len, :]
     x_2 += self.pos_encoding[:, :seq_len, :]
+    x_3 += self.pos_encoding[:, :seq_len, :]
     x_1 = self.dropout(x_1, training=training)
     x_2 = self.dropout(x_2, training=training)
+    x_3 = self.dropout(x_3, training=training)
     # ==== Pluging the inputs (medications, diagnoses) to the encoder layer and repeat for all layers
     for i in range(self.num_layers):
-      x_1, x_2 = self.enc_layers[i](x_1, x_2, training, mask)
-    return x_1, x_2 
+      x_1, x_2, x_3 = self.enc_layers[i](x_1, x_2, x_3, training, mask)
+    return x_1, x_2, x_3 
 
 class Transformer(tf.keras.Model):
   def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, 
@@ -334,20 +427,23 @@ class Transformer(tf.keras.Model):
 
     self.medications_map = tf.keras.layers.Dense(d_model)
     self.diagnoses_map = tf.keras.layers.Dense(d_model)
+    self.procedures_map = tf.keras.layers.Dense(d_model)
     
     self.w5 = tf.keras.layers.Dense(num_classes, kernel_regularizer= regularizers.l2(regu_factor), activity_regularizer=regularizers.l2(regu_factor))
  
-  def call(self, medications, diagnoses, demog_info, training, enc_padding_mask, 
+  def call(self, medications, diagnoses, procedures, demog_info, training, enc_padding_mask, 
            look_ahead_mask, dec_padding_mask):
     batch_size = tf.shape(medications)[0]
+    # pdb.set_trace()
     # === an initial map for medications and diagnoses streams to match their dimensions
     medications = self.medications_map(medications)
     diagnoses = self.diagnoses_map(diagnoses)
-    enc_output_1, enc_output_2 = self.encoder(medications, diagnoses, training, enc_padding_mask)  # (batch_size, inp_seq_len, d_model)
+    procedures = self.procedures_map(procedures)
+    enc_output_1, enc_output_2, enc_output_3 = self.encoder(medications, diagnoses, procedures, training, enc_padding_mask)  # (batch_size, inp_seq_len, d_model)
 
     # ==== concatenate the final outputs of the encoder layers and pass them through a final dense layer to create the logits
-    concated_outputs= tf.concat([enc_output_1, enc_output_2, demog_info], axis=2)
-    concated_outputs_reshaped = tf.reshape(concated_outputs, (batch_size, num_time_steps * (d_model + d_model + d_demogs)))
+    concated_outputs= tf.concat([enc_output_1, enc_output_2, enc_output_3, demog_info], axis=2)
+    concated_outputs_reshaped = tf.reshape(concated_outputs, (batch_size, num_time_steps * (d_model + d_model + d_model + d_demogs)))
     logits=self.w5(concated_outputs_reshaped)
     return logits
 
@@ -363,9 +459,10 @@ transformer = Transformer(num_layers, d_model, num_heads, dff,
 
 
 def train_step(medications, diagnoses, demog_info, tar):
-  enc_padding_mask = create_padding_mask(medications, diagnoses)
+  # pdb.set_trace()
+  enc_padding_mask = create_padding_mask(medications, diagnoses, procedures)
   with tf.GradientTape() as tape:
-    logits = transformer(medications, diagnoses, demog_info, 
+    logits = transformer(medications, diagnoses, procedures, demog_info, 
                                  True, 
                                  enc_padding_mask=enc_padding_mask, 
                                  look_ahead_mask=None, 
@@ -378,11 +475,11 @@ def train_step(medications, diagnoses, demog_info, tar):
   return predictions, myLoss_temp, tar, logits#, tar_real, enc_padding_mask, combined_mask, dec_padding_mask
 
 #===================== READING VALIDATION DATA ====================================
-validation_filename_meds='validation_medications_represented.csv'
-validation_filename_diags='validation_diagnoses_represented.csv'
-validation_filename_demogs='validation_demogs_shuffled_balanced.csv'
-validationset_meds = ReadingData(path_t=validation_filename_meds)#, path_l=validation_labels_filename)#,path_s=validation_lengths_filename)
-validationset_diags = ReadingData(path_t=validation_filename_diags)#, path_l=validation_labels_filename)#,path_s=validation_lengths_filename)
+# pdb.set_trace()
+
+validationset_meds = ReadingData(path_t=validation_filename_meds)
+validationset_diags = ReadingData(path_t=validation_filename_diags)
+validationset_procs = ReadingData(path_t=validation_filename_procs)
 validation_demogs = ReadingData(path_t=validation_filename_demogs)
 #===== Validation meds
 validation_data = validationset_meds.data
@@ -393,6 +490,10 @@ validationset_labels = validation_data_ar[:,-5:-3]
 medications_validation = tf.convert_to_tensor(validation_data_ar_reshaped, np.float32)
 validation_meds_enrolids = validation_data_ar[:,0]
 
+
+validation_split_k_all = find_divisables(len(validation_data_ar))
+validation_split_k = int(len(validation_data_ar)/validation_split_k_all[1])
+
 #==== Validation diags
 validation_data = validationset_diags.data 
 validation_data_ar=np.array(validation_data)
@@ -400,6 +501,15 @@ validation_diags_enrolids= validation_data_ar[:,0]
 validation_data_ar_reshaped=np.reshape(validation_data_ar[:,one:-5],(len(validation_data_ar), num_time_steps, d_diags ))   
 diagnoses_validation = tf.convert_to_tensor(validation_data_ar_reshaped, np.float32)
 validation_diags_enrolids = validation_data_ar[:,0]
+
+#==== Validation procs
+validation_data = validationset_procs.data 
+validation_data_ar=np.array(validation_data)
+validation_diags_enrolids= validation_data_ar[:,0]
+validation_data_ar_reshaped=np.reshape(validation_data_ar[:,one:-5],(len(validation_data_ar), num_time_steps, d_procs ))   
+procedures_validation = tf.convert_to_tensor(validation_data_ar_reshaped, np.float32)
+validation_procs_enrolids = validation_data_ar[:,0]
+
 
 #==== Validation demographic informations
 validation_data = validation_demogs.data
@@ -409,16 +519,18 @@ batch_x_ar_reshaped=np.reshape(validation_data_ar[:,one:],(len(validation_data_a
 validation_demog_info=tf.convert_to_tensor(batch_x_ar_reshaped[:,:,one:], np.float32)
 
 
-if (sum( validation_meds_enrolids != validation_diags_enrolids ) != 0) or (sum(validation_diags_enrolids != validation_demogs_enrolids) != 0):
+
+if (validation_meds_enrolids != validation_diags_enrolids).all() or (validation_meds_enrolids != validation_demogs_enrolids).all() or (validation_meds_enrolids != validation_procs_enrolids).all():
   print("Error: enrolids don't match")
   pdb.set_trace()
-# ========= Reading training data
-train_filename_meds='training_medications_represented.csv'
-train_filename_diags='training_diagnoses_represented.csv'
-train_filename_demogs = 'training_demogs_shuffled_balanced.csv'
+ 
 
+
+
+# ========= Reading training data
 trainset_meds = ReadingData(path_t=train_filename_meds)
 trainset_diags = ReadingData(path_t=train_filename_diags)
+trainset_procs = ReadingData(path_t=train_filename_procs)
 trainset_demogs = ReadingData(path_t=train_filename_demogs)
 
 
@@ -439,6 +551,15 @@ train_data_ar_reshaped=np.reshape(train_data_ar[:,one:-5],(len(train_data_ar), n
 diagnoses_train = tf.convert_to_tensor(train_data_ar_reshaped, np.float32)
 train_diags_enrolids = train_data_ar[:,0]
 
+#==== Training procs
+train_data = trainset_procs.data 
+train_data_ar=np.array(train_data)
+train_diags_enrolids= train_data_ar[:,0]
+train_data_ar_reshaped=np.reshape(train_data_ar[:,one:-5],(len(train_data_ar), num_time_steps, d_procs ))   
+procedures_train = tf.convert_to_tensor(train_data_ar_reshaped, np.float32)
+train_procs_enrolids = train_data_ar[:,0]
+
+
 #==== Training demographics
 train_data = trainset_demogs.data
 train_data_ar=np.array(train_data)
@@ -450,22 +571,24 @@ train_demog_info=tf.convert_to_tensor(batch_x_ar_reshaped[:,:,one:], np.float32)
 train_set_shape = np.shape(trainset_meds.data)
 real_labels=np.zeros((BATCH_SIZE, num_classes), dtype=np.float32)
 random.seed(time.clock())
-model_number=random.randint(1, 1000000)
-print("TRAINING  TWO STREAM MODEL NUMBER: ", model_number)
+model_number=123456#random.randint(1, 1000000)
+print("TRAINING  MULTI-STREAM MODEL NUMBER: ", model_number)
 print("Number of epochs is: ,", EPOCHS)
-checkpoint_path = "./checkpoints/trained_model_" + str(model_number) 
+checkpoint_path = "saved_models/MUPOD/checkpoints/trained_model_" + str(model_number) 
 ckpt = tf.train.Checkpoint(transformer=transformer)
 ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=EPOCHS)
 if ckpt_manager.latest_checkpoint:
   ckpt.restore(ckpt_manager.latest_checkpoint)
   print ('Latest checkpoint restored!!')
 validation_iterative_header = "Validation Accuracy, Validation Precision, Validation Recall, Validation F1-Score, Validation Specificity, Validation TP, Validation TN , Validation FP, Validation FN, validation auc\n"
-with open("training_loss_twostreamT_thresholding_"+str(model_number)+".csv", 'a') as loss_file, open("validation_loss_twostreamT_thresholding"+str(model_number)+".csv", 'a') as val_loss_file, open("train_loss_afterepoch_twostreamT_thresholding"+str(model_number)+".csv", 'a') as trn_loss_file, open("validation_iterative_performance_thresholding_"+str(model_number)+".csv",'w') as val_perf_file:
-    val_perf_file.write("".join(["".join(x) for x in validation_iterative_header]))
+with open("results/MUPOD/training_loss_twostreamT_thresholding_"+str(model_number)+".csv", 'w') as loss_file, open("results/MUPOD/validation_loss_twostreamT_thresholding"+str(model_number)+".csv", 'w') as val_loss_file:#, open("results/MUPOD/train_loss_afterepoch_twostreamT_thresholding"+str(model_number)+".csv", 'a') as trn_loss_file, open("results/MUPOD/validation_iterative_performance_thresholding_"+str(model_number)+".csv",'w') as val_perf_file:
+    # val_perf_file.write("".join(["".join(x) for x in validation_iterative_header]))
     for epoch in range(EPOCHS):
         print("========== Epoch: ", epoch)
+        # pdb.set_trace()
         step=1
         while step * BATCH_SIZE < train_set_shape[0]:
+            # pdb.set_trace()
             # ==== medication stream
             batch_x = trainset_meds.next(BATCH_SIZE)
             batch_x_ar=np.array(batch_x)
@@ -481,34 +604,42 @@ with open("training_loss_twostreamT_thresholding_"+str(model_number)+".csv", 'a'
             diags_enrolids= batch_x_ar[:,0]
             batch_x_ar_reshaped=np.reshape(batch_x_ar[:,one:-5],(BATCH_SIZE, num_time_steps, d_diags))   
             diagnoses=tf.convert_to_tensor(batch_x_ar_reshaped, np.float32)
-            
+
+            # ==== Procedures stream
+            batch_x = trainset_procs.next(BATCH_SIZE)
+            batch_x_ar=np.array(batch_x)
+            procs_enrolids= batch_x_ar[:,0]
+            batch_x_ar_reshaped=np.reshape(batch_x_ar[:,one:-5],(BATCH_SIZE, num_time_steps, d_procs))   
+            procedures=tf.convert_to_tensor(batch_x_ar_reshaped, np.float32)
+                        
             #==== Demographic info
             batch_x = trainset_demogs.next(BATCH_SIZE)
             batch_x_ar=np.array(batch_x)
             demogs_enrolids= batch_x_ar[:,0]
+            batch_x_ar_reshaped=np.reshape(batch_x_ar[:,one:],(BATCH_SIZE, num_time_steps, d_demogs+1))   
+            demog_info=tf.convert_to_tensor(batch_x_ar_reshaped[:,:,one:], np.float32)            
             
             #=== double check enrolids
-            if (sum( meds_enrolids != diags_enrolids ) != 0) or (sum(meds_enrolids != demogs_enrolids) != 0):
+            # pdb.set_trace()
+            if (meds_enrolids != diags_enrolids ).all() or (meds_enrolids != procs_enrolids).all() or (meds_enrolids != demogs_enrolids).all():
               print("Error: enrolids don't match")
               pdb.set_trace()
             
-            batch_x_ar_reshaped=np.reshape(batch_x_ar[:,one:],(BATCH_SIZE, num_time_steps, d_demogs+1))   
-            demog_info=tf.convert_to_tensor(batch_x_ar_reshaped[:,:,one:], np.float32)            
             predictions_temp, loss, tar, logits_temp = train_step(medications, diagnoses, demog_info, real_labels)
             loss_file.write(str(loss.numpy()))
             loss_file.write('\n')           
             step = step + 1  
         # Measure validation loss every 5 epochs                          
-        if epoch % 5 == 0:
+        # if epoch % 5 == 0:
             # Spliting the validation set to smaller sets to save memory space
-            validation_split_k =9694          
+            procedures_validation_split=tf.split(value=procedures_validation, num_or_size_splits=validation_split_k)
             diagnoses_validation_split=tf.split(value=diagnoses_validation, num_or_size_splits=validation_split_k)
             medications_validation_split=tf.split(value=medications_validation, num_or_size_splits=validation_split_k)
             validation_demog_info_split=tf.split(value=validation_demog_info, num_or_size_splits=validation_split_k)
             logits_validation_all = list()
             for i in range(len(diagnoses_validation_split)):
-              val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i])
-              logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+              val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i])
+              logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
               logits_validation_all.extend(logits_validation)
             val_loss= my_loss(validationset_labels, logits_validation_all)
             val_loss_file.write(str(val_loss.numpy()))
@@ -516,28 +647,29 @@ with open("training_loss_twostreamT_thresholding_"+str(model_number)+".csv", 'a'
 
 # Saving the trained model
 ckpt_save_path = ckpt_manager.save()
-
-validation_split_k = 9694          
+# pdb.set_trace()
+procedures_validation_split=tf.split(value=procedures_validation, num_or_size_splits=validation_split_k)
 diagnoses_validation_split=tf.split(value=diagnoses_validation, num_or_size_splits=validation_split_k)
 medications_validation_split=tf.split(value=medications_validation, num_or_size_splits=validation_split_k)
 validation_demog_info_split=tf.split(value=validation_demog_info, num_or_size_splits=validation_split_k)
 logits_validation_all = list()
 for i in range(len(diagnoses_validation_split)):
-  val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i])
-  logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+  val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i])
+  logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
   logits_validation_all.extend(logits_validation)
 predictions_validation_soft=tf.nn.softmax(logits_validation_all)
-np.savetxt('validation_enrolids_multistream.csv', validation_meds_enrolids, delimiter=',')
-np.savetxt('predictions_validation_soft_multistream_'+'_'+str(model_number)+'.csv', predictions_validation_soft)
-np.savetxt('logits_validation_multistream_'+'_'+str(model_number)+'.csv', logits_validation)
+np.savetxt('results/MUPOD/validation_enrolids_multistream.csv', validation_meds_enrolids, delimiter=',')
+np.savetxt('results/MUPOD/predictions_validation_soft_multistream_'+'_'+str(model_number)+'.csv', predictions_validation_soft)
+np.savetxt('results/MUPOD/logits_validation_multistream_'+'_'+str(model_number)+'.csv', logits_validation)
 
 #============ Thresholding 
 probabilities_validation_pos=predictions_validation_soft.numpy()[:,0]
 current_threshold_temp=0
 thresholding_results=np.zeros((num_thresholds, 11)) 
 
-fpr, tpr, thresholds = metrics.roc_curve(validationset_labels[:,0], probabilities_validation_pos, pos_label=1)
-validation_auc = metrics.auc(fpr, tpr)
+# fpr, tpr, thresholds = metrics.roc_curve(validationset_labels[:,0], probabilities_validation_pos, pos_label=1)
+# validation_auc = metrics.auc(fpr, tpr)
+validation_auc=metrics.roc_auc_score(validationset_labels[:,0], probabilities_validation_pos)       
 for thresh_index in range(num_thresholds):
     current_threshold_temp = current_threshold_temp + (1/num_thresholds)              
     tp_validation=0
@@ -592,7 +724,7 @@ validation_auc = best_validation_results[10]
 header_results_filename= "Model Number (TWO STREAM), Learning Rate, Number of Layeres, Number of heads, Batch Size, Dropout Rate, Number of EPOCHS, Validation Accuracy, Validation Precision, Validation Recall, Validation F1-Score, Validation Specificity, Validation TP, Validation TN , Validation FP, Validation FN, Valication AUC, validation optimum threshold, regularization factor\n"
 print("=================== TWO STREAM MODEL======================")
 #pdb.set_trace()
-with open("validation_results_twostreamT_thresholding.csv", 'a') as results_file:
+with open("results/MUPOD/validation_results_twostreamT_thresholding.csv", 'a') as results_file:
       results_file.write("".join(["".join(x) for x in header_results_filename]))  
       results_file.write(str(model_number))
       results_file.write(",")

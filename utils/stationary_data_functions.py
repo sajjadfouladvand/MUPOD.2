@@ -64,9 +64,9 @@ def create_stationary_meds(line_med,
     for i in range(len(line_med_splitted)):
         # if line_med_splitted[i][0]
         for j in range(1, len(line_med_splitted[i])): 
-            if line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits] in distinct_tcgpid_2digit_dict:           
-                distinct_tcgpid_2digit_dict[line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits]] += 1
-            elif line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits] == 'NO' or line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits]=='EO':
+            if (line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits]+'_tcgp_2digit') in distinct_tcgpid_2digit_dict:           
+                distinct_tcgpid_2digit_dict[ line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits]+'_tcgp_2digit'] += 1
+            elif line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits] == 'NO' or line_med_splitted[i][j].replace("'","")[:tcgpi_num_digits] =='EO':
                 continue
             else:
                 pdb.set_trace()   
@@ -95,11 +95,11 @@ def create_stationary_diags(line_diag
                 continue
             elif line_diag_splitted[i][j].replace("'","") not in icd_to_ccs_dict:
                 # pdb.set_trace()
-                ccs_distinct_dict[-math.inf] +=1
+                ccs_distinct_dict['-1000_ccs_diag'] +=1
             elif math.isnan(icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0]):
-                ccs_distinct_dict[-math.inf] +=1                
-            elif icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0] in ccs_distinct_dict:
-                ccs_distinct_dict[icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0]] +=1
+                ccs_distinct_dict['-1000_ccs_diag'] +=1                
+            elif (str(icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0])+'_ccs_diag') in ccs_distinct_dict:
+                ccs_distinct_dict[(str(icd_to_ccs_dict[line_diag_splitted[i][j].replace("'","")][0])+'_ccs_diag')] +=1
             else:
                 pdb.set_trace()   
                 pirnt('warning') 
@@ -129,12 +129,12 @@ def create_stationary_procs(line_proc
                 continue
             elif line_proc_splitted[i][j].replace("'","") not in proc_cd_to_ccs_dict:
                 # pdb.set_trace()
-                proc_ccs_distinct_dict[-math.inf] +=1
+                proc_ccs_distinct_dict['-1000_ccs_proc'] +=1
 
             elif math.isnan(proc_cd_to_ccs_dict[line_proc_splitted[i][j].replace("'","")][0]):
-                proc_ccs_distinct_dict[-math.inf] +=1
-            elif proc_cd_to_ccs_dict[line_proc_splitted[i][j].replace("'","")][0] in proc_ccs_distinct_dict:
-                proc_ccs_distinct_dict[proc_cd_to_ccs_dict[line_proc_splitted[i][j].replace("'","")][0]] +=1
+                proc_ccs_distinct_dict['-1000_ccs_proc'] +=1
+            elif (str(proc_cd_to_ccs_dict[line_proc_splitted[i][j].replace("'","")][0])+'_ccs_proc') in proc_ccs_distinct_dict:
+                proc_ccs_distinct_dict[(str(proc_cd_to_ccs_dict[line_proc_splitted[i][j].replace("'","")][0])+'_ccs_proc')] +=1
             else:
                 pdb.set_trace()  
                 print('warning')  
@@ -172,20 +172,20 @@ def create_stationary(meds_file
     proc_ccs_distinct = dim_procs_ccs['ccs'].dropna().unique()
     proc_ccs_distinct_dict = {}
     for i in range(len(proc_ccs_distinct)):
-        proc_ccs_distinct_dict[proc_ccs_distinct[i]] = 0 
-    proc_ccs_distinct_dict[-math.inf] = 0
+        proc_ccs_distinct_dict[str(proc_ccs_distinct[i])+'_ccs_proc'] = 0 
+    proc_ccs_distinct_dict['-1000_ccs_proc'] = 0
 
     proc_cd_to_ccs = dim_procs_ccs[['proccd', 'ccs']]  
     proc_cd_to_ccs_dict =  proc_cd_to_ccs.set_index('proccd').T.to_dict('list') 
     
-
+    # pdb.set_trace()
     dim_diags = pd.read_csv(dim_diags_file)
     ccs_distinct = dim_diags['CCS_CATGRY'].dropna().unique()
     ccs_distinct_dict = {}
     for i in range(len(ccs_distinct)):
-        ccs_distinct_dict[ccs_distinct[i]] = 0 
-    ccs_distinct_dict[-math.inf] = 0
-    
+        ccs_distinct_dict[str(ccs_distinct[i])+'_ccs_diag'] = 0 
+    ccs_distinct_dict['-1000_ccs_diag'] = 0
+    # pdb.set_trace()
     icd_to_ccs = dim_diags[['DIAG_CD', 'CCS_CATGRY']]  
     icd_to_ccs_dict =  icd_to_ccs.set_index('DIAG_CD').T.to_dict('list') 
 
@@ -193,18 +193,25 @@ def create_stationary(meds_file
     distinct_tcgpid_digits = distinct_tcgpid['TCGPI_ID'].str[0:tcgpi_num_digits].dropna().unique()
     distinct_tcgpid_digits_dict = {}
     for i in range(len(distinct_tcgpid_digits)):
-        distinct_tcgpid_digits_dict[distinct_tcgpid_digits[i]] = 0 
+        distinct_tcgpid_digits_dict[distinct_tcgpid_digits[i]+'_tcgp_2digit'] = 0 
+    # pdb.set_trace()
     counter = 0
     with open(meds_file) as meds_filename, open(diags_file) as diags_filename, open(procs_file) as procs_filename, open(demogs_file) as demogs_filename, open('outputs/'+fold_name+'_stationary.csv','w') as stationary_file:
         demogs_header = next(demogs_filename)
-        stationary_file.write('ENROLID, '+(','.join(map(repr, sorted(distinct_tcgpid_digits)))))
+
+        distinct_tcgpid_digits_dict_sorted = dict(collections.OrderedDict(sorted(distinct_tcgpid_digits_dict.items())))
+        ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(ccs_distinct_dict.items())))
+        proc_ccs_distinct_dict_sorted = dict(collections.OrderedDict(sorted(proc_ccs_distinct_dict.items())))
+        
+        stationary_file.write('ENROLID, '+ (','.join([*distinct_tcgpid_digits_dict_sorted.keys()])) )
         stationary_file.write(',')
 
-        stationary_file.write(','.join(map(repr, sorted(ccs_distinct_dict.keys()))))
-        stationary_file.write(',')   
+        stationary_file.write(','.join([*ccs_distinct_dict_sorted.keys()]))
+        stationary_file.write(',')       
 
-        stationary_file.write(','.join(map(repr, sorted(proc_ccs_distinct_dict.keys()))))
-        stationary_file.write(',')  
+
+        stationary_file.write(','.join([*proc_ccs_distinct_dict_sorted.keys()]))
+        stationary_file.write(',')                
 
         stationary_file.write('Age')  
         stationary_file.write(',')              
