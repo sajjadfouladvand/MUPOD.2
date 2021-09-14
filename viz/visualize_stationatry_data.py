@@ -20,6 +20,9 @@ parser.add_argument("--lr_rate", type=int, default=200)
 parser.add_argument("--compute_stat", type=int, default=0, choices = [0,1])    
 parser.add_argument("--feature_selection", type=int, default=0, choices = [0,1])    
 parser.add_argument("--plot_shaps", type=int, default=0, choices = [0,1])    
+parser.add_argument("--plot_shaps_from_saved_model", type=int, default=0, choices = [0,1])    
+
+parser.add_argument("--trained_model_path", type=str, default="results/visualization_results/shap_results_sep_12/xgb_model.pkl")    
 
 parser.add_argument("--plot_feature_dist_flag", type=int, default=0, choices = [0,1])    
 # parser.add_argument("--compute_shap", type=int, default=0, choices = [0,1])    
@@ -121,3 +124,15 @@ if parser.parse_args().plot_shaps == 1:
         )
 else:
     print('Warning: you have chosen not to perform SHAP plots.')  
+
+if parser.parse_args().plot_shaps_from_saved_model == 1:
+    args = parser.parse_args()
+    vis_tools.plot_shaps_from_saved_model(args.test_stationary_normalized_filtered_filename
+                        , args.hist_meds_filepath 
+                        , args.hist_diags_filepath     
+                        , args.hist_procs_filepath     
+                        , args.sample_size_for_shap    
+                        , args.trained_model_path                
+        )
+else:
+    print('Warning: you have chosen not to perform SHAP plots.')      

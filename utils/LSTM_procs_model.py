@@ -14,15 +14,15 @@ import tensorflow_addons as tfa
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
-def convert_1d_2d(current_batch_meds
+def convert_1d_2d(current_batch_procs
                 , current_batch_metadata
                 , num_time_steps
-                , d_meds
+                , d_procs
                 , batch_size):
     one=1
-    current_batch_meds_ar=np.array(current_batch_meds)
-    meds_enrolids = current_batch_meds_ar[:,0]
-    medications=np.reshape(current_batch_meds_ar[:,one:],(len(current_batch_meds_ar), num_time_steps, d_meds+1))  # +1 for visit date 
+    current_batch_procs_ar=np.array(current_batch_procs)
+    procs_enrolids = current_batch_procs_ar[:,0]
+    procedures=np.reshape(current_batch_procs_ar[:,one:],(len(current_batch_procs_ar), num_time_steps, d_procs+1))  # +1 for visit date 
     
     
     labels_train = np.zeros((batch_size, 2))
@@ -32,16 +32,16 @@ def convert_1d_2d(current_batch_meds
     labels_enrolids = np.array(current_batch_metadata)[:,0]
 
 
-    if not(sum(meds_enrolids == labels_enrolids) == len(meds_enrolids)):
+    if not(sum(procs_enrolids == labels_enrolids) == len(procs_enrolids)):
         print("Error: validation enrolids don't match!")
         pdb.set_trace()
     
 
     current_batch_length=[]
-    for i in range(len(medications)):
-        current_batch_length.append(find_length(medications[i][:,one:]))
+    for i in range(len(procedures)):
+        current_batch_length.append(find_length(procedures[i][:,one:]))
 
-    return medications, labels_train, current_batch_length
+    return procedures, labels_train, current_batch_length
 
 def read_a_batch(file, batch_size):
     # pdb.set_trace()
@@ -79,23 +79,12 @@ def read_a_batch(file, batch_size):
 
 
 
-def dynamicRNN(x, seqlen, weights, weights_emb, biases,seq_max_len,n_hidden, drp):
+def dynamicRNN(x, seqlen, weights, biases,seq_max_len,n_hidden, drp):
 
     # Prepare data shape to match `rnn` function requirements
     # Current data input shape: (batch_size, n_steps, n_input)
     # Required shape: 'n_steps' tensors list of shape (batch_size, n_input)
     
-    # Embedding 
-    # ==========
-    batch_size=tf.shape(x)[0]
-    x_embeded_1 =  tf.matmul(x,weights_emb)
-    x_sum_rows = tf.math.reduce_sum(x, axis=2)
-    
-    x_sum_rows_reshaped = tf.reshape(x_sum_rows,(batch_size, seq_max_len,1))
-    x_normalized = x_embeded_1/tf.math.add(x_sum_rows_reshaped,tf.keras.backend.epsilon())
-    x = x_normalized
-
-
     # Unstack to get a list of 'n_steps' tensors of shape (batch_size, n_input)
     x = tf.unstack(x, seq_max_len, 1)
 
@@ -154,10 +143,11 @@ def find_beg_end(sequence):
         if sum(sequence[i]) != 0 and end ==-1:
             beginning= i    
     return beginning+1, end+1    
-def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz, train_meds_filename,  train_metadata_filename, validation_meds_filename, validation_metadata_filename):
+def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz, train_procs_filename,  train_metadata_filename, validation_procs_filename, validation_metadata_filename):
     tf.compat.v1.reset_default_graph()
     # pdb.set_trace()
-    print("Creating and training the LSTM-meds model ...")
+    print("Creating and training the LSTM-procs model using the following data:")
+
     learning_rate = learning_rt
     training_iters_low = 10000
     batch_size = batch_sz
@@ -167,8 +157,7 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
     num_classes = 2 
     num_time_steps=138
     seq_max_len = 138
-    d_meds = 50
-    d_embedding_meds = 16
+    d_procs = 83
     # embeding parameters
     one = 1
     zero = 0
@@ -176,27 +165,27 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
     # pdb.set_trace()
     # print('===============================================')
     # print('Warning: you are reading first 200 rows.')
-    validation_meds = pd.read_csv(validation_meds_filename, skiprows=1, header=None)#, nrows=200)
+    validation_procs = pd.read_csv(validation_procs_filename, skiprows=1, header=None)#, nrows=200)
     validation_meta = pd.read_csv(validation_metadata_filename)#, nrows=200)
-    val_medications=np.reshape(validation_meds.values[:,one:],(validation_meds.shape[0], num_time_steps, d_meds+1))  # +1 for visit date 
-    validation_labels = np.zeros((val_medications.shape[0], 2))
+    val_procedures=np.reshape(validation_procs.values[:,one:],(validation_procs.shape[0], num_time_steps, d_procs+1))  # +1 for visit date 
+    validation_labels = np.zeros((val_procedures.shape[0], 2))
     validation_labels[:,0] = validation_meta[' Label']  
     validation_labels[:,1] = 1-validation_labels[:,0]
     
 
     val_length=[]
-    for i in range(len(val_medications)):
-        val_length.append(find_length(val_medications[i][:,one:]))
+    for i in range(len(val_procedures)):
+        val_length.append(find_length(val_procedures[i][:,one:]))
     # pdb.set_trace()    
 
     # Check if enrolids match
-    if not(sum(validation_meds.loc[:,0] == validation_meta['ENROLID'])==validation_meds.shape[0]):
+    if not(sum(validation_procs.loc[:,0] == validation_meta['ENROLID'])==validation_procs.shape[0]):
         pdb.set_trace()
         print('Warning: ENROLID mismatch.')
 
 # tf Graph input
     tf.compat.v1.disable_eager_execution()
-    x = tf.compat.v1.placeholder("float", [None, num_time_steps, d_meds])  # input sequence
+    x = tf.compat.v1.placeholder("float", [None, num_time_steps, d_procs])  # input sequence
     y = tf.compat.v1.placeholder("float", [None, num_classes])       # labels
 # A placeholder for indicating each sequence length
     seqlen = tf.compat.v1.placeholder(tf.int32, [None])               # sequence length
@@ -209,9 +198,8 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         'out': tf.Variable(tf.random.normal([num_classes]))
     }
 
-    weights_emb = tf.Variable(tf.random.normal([d_meds, d_embedding_meds]), trainable=True, name = 'weight_for_emb')
-    
-    pred, states, outputs, outputs_original,output_before_idx, output_after_idx, lstm_input = dynamicRNN(x, seqlen, weights, weights_emb, biases,seq_max_len,n_hidden, drp)
+
+    pred, states, outputs, outputs_original,output_before_idx, output_after_idx, lstm_input = dynamicRNN(x, seqlen, weights, biases,seq_max_len,n_hidden, drp)
 
 # Define loss and optimizer
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=pred, labels=y)) #+  (reg_coeff * tf.reduce_sum(tf.nn.l2_loss(weights['out'])))
@@ -233,19 +221,19 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
     with tf.compat.v1.Session(config=config) as sess:
         sess.run(init)
         num_passed_epochs = 0           
-        #with open(train_meds_filename) as train_meds_file, open(train_diags_filename) as train_diags_file, open(train_procs_filename) as train_procs_file, open(train_demogs_filename) as train_demogs_file, open(valid_meds_filename) as valid_meds_file, open(valid_diags_filename) as valid_diags_file, open(valid_procs_filename) as valid_procs_file, open(valid_demogs_filename) as valid_demogs_file, open ('results/LSTM_single_stream/Loss_train_lstm_single_stream_'+str(idx)+'.csv', 'w') as loss_file , open('results/LSTM_single_stream/Loss_validation_lstm_single_stream_'+str(idx)+'.csv', 'w') as loss_file_val:
-        train_meds_file = open(train_meds_filename)
+        #with open(train_procs_filename) as train_procs_file, open(train_procs_filename) as train_procs_file, open(train_procs_filename) as train_procs_file, open(train_demogs_filename) as train_demogs_file, open(valid_procs_filename) as valid_procs_file, open(valid_procs_filename) as valid_procs_file, open(valid_procs_filename) as valid_procs_file, open(valid_demogs_filename) as valid_demogs_file, open ('results/LSTM_single_stream/Loss_train_lstm_single_stream_'+str(idx)+'.csv', 'w') as loss_file , open('results/LSTM_single_stream/Loss_validation_lstm_single_stream_'+str(idx)+'.csv', 'w') as loss_file_val:
+        train_procs_file = open(train_procs_filename)
         train_metadata_file = open(train_metadata_filename)
         
-        train_loss_file = open('results/LSTM_meds/Loss_train_LSTM_meds_'+str(idx)+'.csv', 'w')        
-        validation_loss_file = open('results/LSTM_meds/Loss_validation_LSTM_meds_'+str(idx)+'.csv', 'w')
+        train_loss_file = open('results/LSTM_procs/Loss_train_LSTM_procs_'+str(idx)+'.csv', 'w')        
+        validation_loss_file = open('results/LSTM_procs/Loss_validation_LSTM_procs_'+str(idx)+'.csv', 'w')
         
         step=0
         ########### Overfit the model
         # pdb.set_trace()
         # for i in range(10):
         #     current_batch_meds, eof_reached_meds = read_a_batch(train_meds_file, batch_size)
-        #     current_batch_diags, eof_reached_diags = read_a_batch(train_diags_file, batch_size)
+        #     current_batch_procs, eof_reached_procs = read_a_batch(train_procs_file, batch_size)
         #     current_batch_procs, eof_reached_procs = read_a_batch(train_procs_file, batch_size)
         #     current_batch_demogs, eof_reached_demogs = read_a_batch(train_demogs_file, batch_size)
         #     current_batch_metadata, eof_reached_demogs = read_a_batch(train_metadata_file, batch_size)
@@ -255,41 +243,40 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         while num_passed_epochs < epochs:
             # num_passed_epochs+=1 ###########
             # pdb.set_trace()
-            current_batch_meds, eof_reached_meds = read_a_batch(train_meds_file, batch_size)
+            current_batch_procs, eof_reached_procs = read_a_batch(train_procs_file, batch_size)
             current_batch_metadata, eof_reached_demogs = read_a_batch(train_metadata_file, batch_size)           
 
-            if  eof_reached_meds == 1:
-                # pdb.set_trace()
+            if  eof_reached_procs == 1:
                 print('End of one epoch:')
                 num_passed_epochs += 1
                 print(num_passed_epochs)
 
-            medications, labels_train, current_batch_length = convert_1d_2d(current_batch_meds
+            procedures, labels_train, current_batch_length = convert_1d_2d(current_batch_procs
                                                                                         , current_batch_metadata
                                                                                         , num_time_steps
-                                                                                        , d_meds
+                                                                                        , d_procs
                                                                                         , batch_size)            
 
-            sess.run(optimizer, feed_dict={x: medications[:,:,one:], y: labels_train, seqlen: current_batch_length})  
-            loss = sess.run(cost, feed_dict={x: medications[:,:,one:], y: labels_train, seqlen: current_batch_length})
+            sess.run(optimizer, feed_dict={x: procedures[:,:,one:], y: labels_train, seqlen: current_batch_length})  
+            loss = sess.run(cost, feed_dict={x: procedures[:,:,one:], y: labels_train, seqlen: current_batch_length})
             train_loss_file.write(str(loss))
             train_loss_file.write("\n")
             step+=1
             # print(step)
-            # if step>5:
+            # if step>2:
             #     break
             if step%100==0:
                 print('The step is {} and the epoch number is {}'.format(step, num_passed_epochs))                
             # pdb.set_trace()
             # validation loss calculation
-            val_loss = sess.run(cost, feed_dict={x: val_medications[:,:,one:], y: validation_labels, seqlen: val_length})
+            val_loss = sess.run(cost, feed_dict={x: val_procedures[:,:,one:], y: validation_labels, seqlen: val_length})
             validation_loss_file.write(str(np.mean(val_loss)))
             validation_loss_file.write('\n')
 
 
-        saver.save(sess, save_path='saved_models/LSTM_meds/LSTM_meds_diags_procs_demogs_model_'+str(int(idx))+'.ckpt')
+        saver.save(sess, save_path='saved_models/LSTM_procs/LSTM_procs_procs_procs_demogs_model_'+str(int(idx))+'.ckpt')
         print("Optimization Finished!")
-        train_meds_file.close()
+        train_procs_file.close()
         train_metadata_file.close()
         train_loss_file.close()
         validation_loss_file.close()
@@ -297,12 +284,12 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         #=================================================================
         # pdb.set_trace()
         # ==== Validating
-        [y_arg_validation, softmax_predictions_validation, pred_arg_validation] =sess.run([y_arg, softmax_predictions, pred_arg], feed_dict={x: val_medications[:,:,one:], y: validation_labels,seqlen: val_length})
+        [y_arg_validation, softmax_predictions_validation, pred_arg_validation] =sess.run([y_arg, softmax_predictions, pred_arg], feed_dict={x: val_procedures[:,:,one:], y: validation_labels,seqlen: val_length})
 
-        # with open(validation_meds_filename) as validation_meds_file, open(validation_diags_filename) as validation_diags_file, open(validation_procs_filename) as validation_procs_file, open(validation_demogs_filename) as validation_demogs_file, open(validation_metadata_filename) as validation_meta_file:
+        # with open(validation_meds_filename) as validation_meds_file, open(validation_procs_filename) as validation_procs_file, open(validation_procs_filename) as validation_procs_file, open(validation_demogs_filename) as validation_demogs_file, open(validation_metadata_filename) as validation_meta_file:
         #     next(validation_meta_file)
         #     next(validation_meds_file)
-        #     next(validation_diags_file)
+        #     next(validation_procs_file)
         #     next(validation_procs_file)
 
         #     validation_labels = []
@@ -315,9 +302,9 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         #         line_med = line_med.split(',')
         #         line_med = [float(i) for i in line_med]
 
-        #         line_diag = validation_diags_file.readline()
-        #         line_diag = line_diag.split(',')
-        #         line_diag = [float(i) for i in line_diag]
+        #         line_proc = validation_procs_file.readline()
+        #         line_proc = line_proc.split(',')
+        #         line_proc = [float(i) for i in line_proc]
 
         #         line_proc = validation_procs_file.readline()
         #         line_proc = line_proc.split(',')
@@ -331,15 +318,15 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         #         line_meta = line_meta.split(',')
         #         line_meta = [float(i) for i in line_meta]  
 
-        #         if not(line_med[0] == line_diag[0] == line_proc[0] == line_demog[0] == line_meta[0]):
+        #         if not(line_med[0] == line_proc[0] == line_proc[0] == line_demog[0] == line_meta[0]):
         #             pdb.set_trace()
         #             print('Warning: mismatch enrolids')
 
         #         line_med_ar=np.array(line_med)
         #         medications=np.reshape(line_med_ar[one:],(1, num_time_steps, d_meds+1))  # +1 for visit date 
                 
-        #         line_diag_ar=np.array(line_diag)
-        #         diagnoses=np.reshape(line_diag_ar[one:],(1, num_time_steps, d_diags+1))  # +1 for visit date 
+        #         line_proc_ar=np.array(line_proc)
+        #         procedures=np.reshape(line_proc_ar[one:],(1, num_time_steps, d_procs+1))  # +1 for visit date 
 
         #         line_proc_ar=np.array(line_proc)
         #         procedures = np.reshape(line_proc_ar[one:],(1, num_time_steps, d_procs+1))  # +1 for visit date 
@@ -361,13 +348,13 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
         #             print('Warning')
         #             pdb.set_trace()
                 
-        #         meds_diags_procs_demogs=np.concatenate((medications[:,:,one:], diagnoses[:,:, one:], procedures[:,:,one:], demographics[:,:,one:]), axis=2)
+        #         meds_procs_procs_demogs=np.concatenate((medications[:,:,one:], procedures[:,:, one:], procedures[:,:,one:], demographics[:,:,one:]), axis=2)
 
-        #         length = [find_length(meds_diags_procs_demogs[0,:,:-d_demogs])]
+        #         length = [find_length(meds_procs_procs_demogs[0,:,:-d_demogs])]
         #         # pdb.set_trace()
-        #         loss = sess.run(cost, feed_dict={x: meds_diags_procs_demogs, y: [labels_2d_temp], seqlen: length})
+        #         loss = sess.run(cost, feed_dict={x: meds_procs_procs_demogs, y: [labels_2d_temp], seqlen: length})
         #         validation_loss.append(loss)
-        #         [y_arg_temp, softmax_predictions_temp, pred_arg_temp] =sess.run([y_arg, softmax_predictions, pred_arg], feed_dict={x: meds_diags_procs_demogs, y: [labels_2d_temp],seqlen: length})
+        #         [y_arg_temp, softmax_predictions_temp, pred_arg_temp] =sess.run([y_arg, softmax_predictions, pred_arg], feed_dict={x: meds_procs_procs_demogs, y: [labels_2d_temp],seqlen: length})
         #         y_arg_validation.append(y_arg_temp[0])
         #         softmax_predictions_validation.append(softmax_predictions_temp.tolist()[0])
         #         pred_arg_validation.append(pred_arg_temp[0])
@@ -416,37 +403,37 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
             #============================== Represent patients using trained LSTM        
             # pdb.set_trace()
             print("Representing the validation data...")
-            validation_meds_filename = 'outputs/validation_medications_multihot.csv'
+            validation_procs_filename = 'outputs/validation_procedures_multihot.csv'
             validation_metadata_filename = 'outputs/validation_demographics_shuffled.csv'
 
-            test_meds_filename = 'outputs/test_medications_multihot.csv'
+            test_procs_filename = 'outputs/test_procedures_multihot.csv'
             test_metadata_filename = 'outputs/test_demographics_shuffled.csv'
 
-            train_meds_filename = 'outputs/train_medications_multihot.csv'
+            train_procs_filename = 'outputs/train_procedures_multihot.csv'
             train_metadata_filename = 'outputs/train_demographics_shuffled.csv'
             print("=================================")        
             # Representing validation
-            with open("outputs/validation_meds_represented.csv",'w') as valid_rep_file, open(validation_meds_filename) as validation_meds_file, open(validation_metadata_filename) as validation_meta_file:
+            with open("outputs/validation_procs_represented.csv",'w') as valid_rep_file, open(validation_procs_filename) as validation_procs_file, open(validation_metadata_filename) as validation_meta_file:
                 next(validation_meta_file)
-                next(validation_meds_file)
+                next(validation_procs_file)
                 # line_counter=0
-                for line_med in validation_meds_file:
+                for line_proc in validation_procs_file:
                     # line_counter+=1
                     # if line_counter>100:
                     #     break
-                    line_med = line_med.split(',')
-                    line_med = [float(i) for i in line_med]
+                    line_proc = line_proc.split(',')
+                    line_proc = [float(i) for i in line_proc]
 
                     line_meta = validation_meta_file.readline()
                     line_meta = line_meta.split(',')
                     line_meta = [float(i) for i in line_meta]  
 
-                    if not(line_med[0] == line_meta[0]):
+                    if not(line_proc[0] == line_meta[0]):
                         pdb.set_trace()
                         print('Warning: mismatch enrolids')
-                    current_patient_enrolid = line_med[0]    
-                    line_med_ar=np.array(line_med)
-                    medications=np.reshape(line_med_ar[one:],(1, num_time_steps, d_meds+1))  # +1 for visit date 
+                    current_patient_enrolid = line_proc[0]    
+                    line_proc_ar=np.array(line_proc)
+                    procedures=np.reshape(line_proc_ar[one:],(1, num_time_steps, d_procs+1))  # +1 for visit date 
                     
                     labels_temp = np.array(line_meta)[-1]  
                     if labels_temp == 1:
@@ -460,10 +447,10 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
                         print('Warning')
                     
                     # pdb.set_trace()    
-                    length = [find_length(medications[0,:,one:])]
-                    beginning, end = find_beg_end(medications[0,:,one:])
+                    length = [find_length(procedures[0,:,one:])]
+                    beginning, end = find_beg_end(procedures[0,:,one:])
                     # pdb.set_trace()
-                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: medications[:,:,one:], y: [labels_2d_temp],seqlen: length})            
+                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: procedures[:,:,one:], y: [labels_2d_temp],seqlen: length})            
                     array_temp=np.array(outputs_original_temp).flatten()
                     valid_rep_file.write(str(current_patient_enrolid))
                     valid_rep_file.write(',')
@@ -480,27 +467,27 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
 
             # Representing testing
             print("Representing the test data...")            
-            with open("outputs/test_meds_represented.csv",'w') as test_rep_file, open(test_meds_filename) as test_meds_file, open(test_metadata_filename) as test_meta_file:
+            with open("outputs/test_procs_represented.csv",'w') as test_rep_file, open(test_procs_filename) as test_procs_file, open(test_metadata_filename) as test_meta_file:
                 next(test_meta_file)
-                next(test_meds_file)
+                next(test_procs_file)
                 # line_counter=0
-                for line_med in test_meds_file:
+                for line_proc in test_procs_file:
                     # line_counter+=1
                     # if line_counter>100:
                     #     break                    
-                    line_med = line_med.split(',')
-                    line_med = [float(i) for i in line_med]
+                    line_proc = line_proc.split(',')
+                    line_proc = [float(i) for i in line_proc]
 
                     line_meta = test_meta_file.readline()
                     line_meta = line_meta.split(',')
                     line_meta = [float(i) for i in line_meta]  
 
-                    if not(line_med[0] == line_meta[0]):
+                    if not(line_proc[0] == line_meta[0]):
                         pdb.set_trace()
                         print('Warning: mismatch enrolids')
-                    current_patient_enrolid = line_med[0]    
-                    line_med_ar=np.array(line_med)
-                    medications=np.reshape(line_med_ar[one:],(1, num_time_steps, d_meds+1))  # +1 for visit date                     
+                    current_patient_enrolid = line_proc[0]    
+                    line_proc_ar=np.array(line_proc)
+                    procedures=np.reshape(line_proc_ar[one:],(1, num_time_steps, d_procs+1))  # +1 for visit date                     
                     
                     labels_temp = np.array(line_meta)[-1]  
                     if labels_temp == 1:
@@ -513,10 +500,10 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
                         pdb.set_trace()    
                         print('Warning')                    
 
-                    length = [find_length(medications[0,:,one:])]
-                    beginning, end = find_beg_end(medications[0,:,one:])
+                    length = [find_length(procedures[0,:,one:])]
+                    beginning, end = find_beg_end(procedures[0,:,one:])
                     # pdb.set_trace()
-                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: medications[:,:,one:], y: [labels_2d_temp],seqlen: length})            
+                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: procedures[:,:,one:], y: [labels_2d_temp],seqlen: length})            
                     array_temp=np.array(outputs_original_temp).flatten()
                     test_rep_file.write(str(current_patient_enrolid))
                     test_rep_file.write(',')
@@ -533,27 +520,27 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
 
             # Representing train
             print("Representing the train data...")            
-            with open("outputs/train_meds_represented.csv",'w') as train_rep_file, open(train_meds_filename) as train_meds_file, open(train_metadata_filename) as train_meta_file:
+            with open("outputs/train_procs_represented.csv",'w') as train_rep_file, open(train_procs_filename) as train_procs_file, open(train_metadata_filename) as train_meta_file:
                 next(train_meta_file)
-                next(train_meds_file)
+                next(train_procs_file)
                 # line_counter=0
-                for line_med in train_meds_file:
+                for line_proc in train_procs_file:
                     # line_counter+=1
                     # if line_counter>100:
                     #     break
-                    line_med = line_med.split(',')
-                    line_med = [float(i) for i in line_med]
+                    line_proc = line_proc.split(',')
+                    line_proc = [float(i) for i in line_proc]
 
                     line_meta = train_meta_file.readline()
                     line_meta = line_meta.split(',')
                     line_meta = [float(i) for i in line_meta]  
 
-                    if not(line_med[0] == line_meta[0]):
+                    if not(line_proc[0] == line_meta[0]):
                         pdb.set_trace()
                         print('Warning: mismatch enrolids')
-                    current_patient_enrolid = line_med[0]    
-                    line_med_ar=np.array(line_med)
-                    medications=np.reshape(line_med_ar[one:],(1, num_time_steps, d_meds+1))  # +1 for visit date 
+                    current_patient_enrolid = line_proc[0]    
+                    line_proc_ar=np.array(line_proc)
+                    procedures=np.reshape(line_proc_ar[one:],(1, num_time_steps, d_procs+1))  # +1 for visit date 
                     
                     labels_temp = np.array(line_meta)[-1]  
                     if labels_temp == 1:
@@ -566,10 +553,10 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
                         pdb.set_trace()    
                         print('Warning')
                     
-                    length = [find_length(medications[0,:,one:])]
-                    beginning, end = find_beg_end(medications[0,:,one:])
+                    length = [find_length(procedures[0,:,one:])]
+                    beginning, end = find_beg_end(procedures[0,:,one:])
                     # pdb.set_trace()
-                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: medications[:,:,one:], y: [labels_2d_temp],seqlen: length})            
+                    [states_temp, outputs_original_temp] =sess.run([states, outputs_original], feed_dict={x: procedures[:,:,one:], y: [labels_2d_temp],seqlen: length})            
                     array_temp=np.array(outputs_original_temp).flatten()
                     train_rep_file.write(str(current_patient_enrolid))
                     train_rep_file.write(',')
@@ -586,6 +573,6 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
                 # pdb.set_trace()                 
     return softmax_predictions_validation, accuracy, precision, recall, sensitivity, specificity, tp, tn, fp, fn, validation_auc#, accuracy_temp_train, precision_train, recall_train, sensitivity_train, specificity_train,tp_train, tn_train, fp_train, fn_train
 
-if __name__ == "__main__": main(idx, drp,representing, epochs, reg_coeff, learning_rt, n_hid, batch_sz, train_meds_filename, train_metadata_filename, validation_meds_filename, validation_metadata_filename)
+if __name__ == "__main__": main(idx, drp,representing, epochs, reg_coeff, learning_rt, n_hid, batch_sz, train_procs_filename, train_metadata_filename, validation_procs_filename, validation_metadata_filename)
 
 

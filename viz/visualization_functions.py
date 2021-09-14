@@ -710,6 +710,96 @@ def plot_shaps (train_stationary_normalized_filtered_filename
     # pdb.set_trace()
     print('Test')
 
+def plot_shaps_from_saved_model (test_stationary_normalized_filtered_filename
+                , hist_meds_filepath
+                , hist_diags_filepath
+                , hist_procs_filepath    
+                , sample_size_for_shap   
+                , trained_model_path                     
+            ):
+    
+    print('Reading the test data ....')
+    test_data = pd.read_csv(test_stationary_normalized_filtered_filename)
+
+    med_freq = pd.read_csv(hist_meds_filepath)
+    diag_freq = pd.read_csv(hist_diags_filepath)
+    proc_freq = pd.read_csv(hist_procs_filepath)
+
+    print('Filtering sparse features ....')
+    mean = 1
+    med_freq_sorted = med_freq.sort_values(by='Frequency', ascending=False)
+    sum_squares = 0
+    for i in range(len(med_freq)):
+        sum_squares += med_freq_sorted['Frequency'].iloc[i] * (((i+1) - mean) ** 2)     
+    std_med = np.sqrt(sum_squares/med_freq_sorted['Frequency'].sum())
+
+    diag_freq_sorted = diag_freq.sort_values(by='Frequency', ascending=False)
+    sum_squares = 0
+    for i in range(len(diag_freq)):
+        sum_squares += diag_freq_sorted['Frequency'].iloc[i] * (((i+1) - mean) ** 2)     
+    std_diag = np.sqrt(sum_squares/diag_freq_sorted['Frequency'].sum())
+
+    proc_freq_sorted = proc_freq.sort_values(by='Frequency', ascending=False)
+    sum_squares = 0
+    for i in range(len(proc_freq)):
+        sum_squares += proc_freq_sorted['Frequency'].iloc[i] * (((i+1) - mean) ** 2)     
+    std_proc = np.sqrt(sum_squares/proc_freq_sorted['Frequency'].sum())
+    # pdb.set_trace()
+    cut_off_th_med = mean + 1 * std_med
+    cut_off_th_diag = mean + 1 * std_diag
+    cut_off_th_proc = mean + 1 * std_proc
+    
+    meds_features = med_freq_sorted.iloc[:int(cut_off_th_med)+1].Feature.tolist()
+    diags_features = diag_freq_sorted.iloc[:int(cut_off_th_diag)+1].Feature.tolist()
+    procs_features = proc_freq_sorted.iloc[:int(cut_off_th_proc)+1].Feature.tolist()
+    feature_to_keep = ['ENROLID'] + meds_features + diags_features + procs_features + ['Age', 'Sex', 'Label']
+
+    # pdb.set_trace()
+    test_data_features_filtered =  test_data.loc[:, test_data.columns.isin(feature_to_keep)]
+    
+    data_all = test_data_features_filtered
+
+    print('Sampling the data ....')
+    data_pos = data_all[data_all['Label'] == 1]
+    data_neg = data_all[data_all['Label'] == 0]
+    data_pos_sampled = data_pos.sample(n=int(sample_size_for_shap * len(data_pos)), replace=False)
+    data_neg_sampled = data_neg.sample(n=int(sample_size_for_shap * len(data_neg)), replace=False)
+    data_all_sampled = pd.concat([data_pos_sampled, data_neg_sampled])
+    data_all_sampled=data_all_sampled.sample(frac=1)
+
+    data_all_sampled.to_csv('results/visualization_results/data_all_sampled_using_trained_model.csv', index=False)
+
+    print('===========================')
+    print('Loading XGB model ....')
+    # trained_model_path = 'results/visualization_results/shap_results_sep_12/xgb_model.pkl'
+    randomCV =  pickle.load(open(trained_model_path, 'rb'))
+    model = randomCV.best_estimator_
+
+    print('===========================')
+    print('Creating shap plots ....')    
+    explainer = shap.Explainer(model, data_all_sampled.iloc[:,1:-1])
+    shap_values = explainer(data_all_sampled.iloc[:,1:-1])
+    shap.plots.beeswarm(shap_values, plot_size=[14,8])    
+    # fig = plt.gcf()
+    # fig.set_size_inches(18, 12)
+    plt.savefig('results/visualization_results/beeswarm_xgb_using_trained_model.png', dpi=600)
+    plt.close()
+
+
+    predictions = model.predict(data_all_sampled.iloc[:,1:-1])
+
+    np.savetxt('results/visualization_results/predictions_xgb_for_shap_using_trained_model.csv', predictions, delimiter=',')
+
+    tn, tp, fn, fp, accuracy, precision, recall, specificity, F1, rf_test_auc = performance_evaluation(predictions
+                                                                            , data_all_sampled
+                                                                            , model
+                                                                            )   
+    write_results(tn, tp, fn, fp, 
+                accuracy, precision, recall, specificity
+                , F1, rf_test_auc
+                , 'trained_xgb')
+    # pdb.set_trace()
+    print('Test')
 
 
 
