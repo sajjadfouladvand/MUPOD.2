@@ -50,6 +50,10 @@ For visualizing the data using tSNE method (pca is also available):
 ```
 python viz/visualize_stationary_data.py --viz_method tsne
 ```
+
+tsne_sampled_2000_meds_diags_procs_20_2000_200_1.822.png![image](https://user-images.githubusercontent.com/34069771/133484202-90787476-ab6d-424a-92a6-dea00adac39e.png)
+
+
 If you wish to see the frequency of the features you can run this comamnd. This script will produce bar diagrams of feature frequencies for medication, diagnoses and procedures seperately under the "results/visualization_results/":
 ```
 python viz/visualize_stationary_data.py --plot_feature_dist_flag 1
