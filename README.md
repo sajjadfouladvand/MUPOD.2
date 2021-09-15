@@ -86,3 +86,14 @@ python main_multi_hot_shuffle.py --fold_name test --feature_selection 1
 <h1 style="font-size:60px;">4. Transformer</h1>
 
 <h1 style="font-size:60px;">4. MUPOD</h1>
+
+
+<h1 style="font-size:60px;">4. Testing trained models using imbalanced test sets</h1>
+
+First, create imbalanced test data sets for all models using the following command:
+
+```
+python utils/create_imb_test_sets.py
+```
+
+
