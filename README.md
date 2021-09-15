@@ -100,4 +100,12 @@ First, create imbalanced test data sets for all models using the following comma
 python utils/create_imb_test_sets.py
 ```
 
+Run the following scripts to test the stationary models (random foresr and logistic regression) using imbalanced data sets:
+
+```
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 2
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 5
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 10
+```
+
 
