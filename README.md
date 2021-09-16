@@ -66,7 +66,7 @@ python viz/visualize_stationary_data.py --feature_selection 1
 
 Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. Furtheremore, the argument "feature_selection" can be used to train and test the models using the data generated after performing feature selection in the previous step.
 ```
-6_main_classical_ml_models.py --ml_model rf --feature_selection 1
+python 6_main_classical_ml_models.py --ml_model rf --feature_selection 1
 ```
 The results will be stored under ```/results/classical_ml_models```. 
 
