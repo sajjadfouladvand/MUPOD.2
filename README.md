@@ -50,6 +50,10 @@ For visualizing the data using tSNE method (pca is also available):
 ```
 python viz/visualize_stationary_data.py --viz_method tsne
 ```
+
+tsne_sampled_2000_meds_diags_procs_20_2000_200_1.822.png![image](https://user-images.githubusercontent.com/34069771/133484202-90787476-ab6d-424a-92a6-dea00adac39e.png)
+
+
 If you wish to see the frequency of the features you can run this comamnd. This script will produce bar diagrams of feature frequencies for medication, diagnoses and procedures seperately under the "results/visualization_results/":
 ```
 python viz/visualize_stationary_data.py --plot_feature_dist_flag 1
@@ -62,7 +66,7 @@ python viz/visualize_stationary_data.py --feature_selection 1
 
 Now you can run the follwoing command to train, validate and test classical machine learning models on the stationary data. Argument ```ml_model``` can be used to choose which ML model be used to do the predictions. The default value is ```--ml_model rf``` which applyes a random forest on the stationary data. Furtheremore, the argument "feature_selection" can be used to train and test the models using the data generated after performing feature selection in the previous step.
 ```
-6_main_classical_ml_models.py --ml_model rf --feature_selection 1
+python 6_main_classical_ml_models.py --ml_model rf --feature_selection 1
 ```
 The results will be stored under ```/results/classical_ml_models```. 
 
@@ -94,6 +98,14 @@ First, create imbalanced test data sets for all models using the following comma
 
 ```
 python utils/create_imb_test_sets.py
+```
+
+Run the following scripts to test the stationary models (random foresr and logistic regression) using imbalanced data sets:
+
+```
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 2
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 5
+python 6_main_classical_ml_models.py --ml_model none --test_imb 1 --test_imb_ratio 10
 ```
 
 
