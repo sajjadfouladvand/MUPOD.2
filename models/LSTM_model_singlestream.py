@@ -255,8 +255,8 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
     num_time_steps=138
     seq_max_len = 138
     d_meds = 50
-    d_diags = 60
-    d_procs = 83
+    d_diags = 138
+    d_procs = 80
     d_demogs = 2
 
     one = 1

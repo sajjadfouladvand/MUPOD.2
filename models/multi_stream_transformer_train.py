@@ -11,9 +11,28 @@ import random
 from sklearn import metrics
 from keras import regularizers
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
 tf.keras.backend.clear_session()
 random.seed(time.clock())
+
+def concat_csv_files(train_data_filename, validation_data_filename, stream_name):
+    # pdb.set_trace()
+    # remove the file if exist
+    if os.path.exists('outputs/train_and_validation_'+stream_name+'_represented.csv'): 
+        os.remove('outputs/train_and_validation_'+stream_name+'_represented.csv')
+    
+    # Write train data
+    with open(train_data_filename) as train_data_file, open('outputs/train_and_validation_'+stream_name+'_represented.csv', 'a') as train_val_file:
+        for line in train_data_file:
+            train_val_file.write(line)
+    # pdb.set_trace()
+    # Write validation data
+    with open(validation_data_filename) as validation_data_file, open('outputs/train_and_validation_'+stream_name+'_represented.csv', 'a') as train_val_file:
+        for line in validation_data_file:
+            if line.split(',')[0] == 'ENROLID':
+                continue
+            train_val_file.write(line)
+# pdb.set_trace()      
 
 # === File names
 validation_filename_meds='outputs/validation_meds_represented.csv'
@@ -26,7 +45,33 @@ train_filename_diags='outputs/train_diags_represented.csv'
 train_filename_procs = 'outputs/train_procs_represented.csv'
 train_filename_demogs = 'outputs/train_demographics_multihot.csv'
 
-print('WARNING: YOU ARE USING FIRST 100 SAMPLLES')
+
+# print('Concatenating train and validation files ...')
+# concat_csv_files(train_filename_meds, validation_filename_meds, 'medications')
+# concat_csv_files(train_filename_diags, validation_filename_diags, 'diagnoses')
+# concat_csv_files(train_filename_procs, validation_filename_procs, 'procedures')
+# concat_csv_files(train_filename_demogs, validation_filename_demogs, 'demographics')
+
+# # pdb.set_trace()
+
+# validation_filename_meds='outputs/validation_meds_represented.csv'
+# validation_filename_diags='outputs/validation_diags_represented.csv'
+# validation_filename_procs='outputs/validation_procs_represented.csv'
+# validation_filename_demogs='outputs/validation_demographics_multihot.csv'
+
+# train_filename_meds='outputs/train_and_validation_medications_represented.csv'
+# train_filename_diags='outputs/train_and_validation_diagnoses_represented.csv'
+# train_filename_procs = 'outputs/train_and_validation_procedures_represented.csv'
+# train_filename_demogs = 'outputs/train_and_validation_demographics_represented.csv'
+
+print('========================')
+print('Train file names are:')
+print(train_filename_meds)
+print(train_filename_diags)
+print(train_filename_procs)
+print(train_filename_demogs)
+print('========================')
+# print('WARNING: YOU ARE USING FIRST 100 SAMPLLES')
 # n_temp =100
 # ==== constants
 d_model=48
@@ -73,7 +118,11 @@ class ReadingData(object):
         s=[]
         temp=[]
         with open(path_t) as f:
-              for line in f:                   
+              # line_counter = 0
+              for line in f:  
+                  # line_counter += 1
+                  # if line_counter > 400:
+                  #   break                 
                   d_temp=line.split(',')
                   d_temp=[float(x) for x in d_temp]
                   self.data.append(d_temp)
@@ -528,6 +577,7 @@ if (validation_meds_enrolids != validation_diags_enrolids).all() or (validation_
 
 
 # ========= Reading training data
+print('Reading data ....')
 trainset_meds = ReadingData(path_t=train_filename_meds)
 trainset_diags = ReadingData(path_t=train_filename_diags)
 trainset_procs = ReadingData(path_t=train_filename_procs)
@@ -570,7 +620,7 @@ train_demog_info=tf.convert_to_tensor(batch_x_ar_reshaped[:,:,one:], np.float32)
 
 train_set_shape = np.shape(trainset_meds.data)
 real_labels=np.zeros((BATCH_SIZE, num_classes), dtype=np.float32)
-random.seed(time.clock())
+# random.seed(time.clock())
 model_number=123456#random.randint(1, 1000000)
 print("TRAINING  MULTI-STREAM MODEL NUMBER: ", model_number)
 print("Number of epochs is: ,", EPOCHS)
@@ -585,6 +635,7 @@ with open("results/MUPOD/training_loss_twostreamT_thresholding_"+str(model_numbe
     # val_perf_file.write("".join(["".join(x) for x in validation_iterative_header]))
     for epoch in range(EPOCHS):
         print("========== Epoch: ", epoch)
+        # pdb.set_trace()
         # pdb.set_trace()
         step=1
         while step * BATCH_SIZE < train_set_shape[0]:
@@ -632,18 +683,20 @@ with open("results/MUPOD/training_loss_twostreamT_thresholding_"+str(model_numbe
         # Measure validation loss every 5 epochs                          
         # if epoch % 5 == 0:
             # Spliting the validation set to smaller sets to save memory space
-            # procedures_validation_split=tf.split(value=procedures_validation, num_or_size_splits=validation_split_k)
-            # diagnoses_validation_split=tf.split(value=diagnoses_validation, num_or_size_splits=validation_split_k)
-            # medications_validation_split=tf.split(value=medications_validation, num_or_size_splits=validation_split_k)
-            # validation_demog_info_split=tf.split(value=validation_demog_info, num_or_size_splits=validation_split_k)
-            # logits_validation_all = list()
-            # for i in range(len(diagnoses_validation_split)):
-            #   val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i])
-            #   logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
-            #   logits_validation_all.extend(logits_validation)
-            # val_loss= my_loss(validationset_labels, logits_validation_all)
-            # val_loss_file.write(str(val_loss.numpy()))
-            # val_loss_file.write("\n")
+            # pdb.set_trace()
+        # procedures_validation_split=tf.split(value=procedures_validation, num_or_size_splits=validation_split_k)
+        # diagnoses_validation_split=tf.split(value=diagnoses_validation, num_or_size_splits=validation_split_k)
+        # medications_validation_split=tf.split(value=medications_validation, num_or_size_splits=validation_split_k)
+        # validation_demog_info_split=tf.split(value=validation_demog_info, num_or_size_splits=validation_split_k)
+        # # pdb.set_trace()
+        # logits_validation_all = list()
+        # for i in range(len(diagnoses_validation_split)):
+        #   val_enc_mask = create_padding_mask(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i])
+        #   logits_validation = transformer(medications_validation_split[i], diagnoses_validation_split[i], procedures_validation_split[i], validation_demog_info_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+        #   logits_validation_all.extend(logits_validation)
+        # val_loss= my_loss(validationset_labels, logits_validation_all)
+        # val_loss_file.write(str(val_loss.numpy()))
+        # val_loss_file.write("\n")
 
 # Saving the trained model
 ckpt_save_path = ckpt_manager.save()

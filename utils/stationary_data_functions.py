@@ -75,13 +75,9 @@ def create_stationary_meds(line_med,
     num_records = len(line_med_splitted)
     if (num_records > 1):
         distinct_tcgpid_2digit_dict_sorted = {k: np.round(v / (math.log(num_records, 2)+ epsil), round_dig) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}
-    else:# (num_records == 1):
+    else:
         distinct_tcgpid_2digit_dict_sorted = {k: np.round(v , round_dig) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}        
-    # else:
-    #     pdb.set_trace()
-    #     print('Patinet has less than two records.')
-        # distinct_tcgpid_2digit_dict_sorted = {k: np.round(v / (math.log(num_records, 2)+ epsil), round_dig) for k, v in distinct_tcgpid_2digit_dict_sorted.items()}
-    
+
     return distinct_tcgpid_2digit_dict_sorted
 
 def create_stationary_diags(line_diag
@@ -117,10 +113,7 @@ def create_stationary_diags(line_diag
         ccs_distinct_dict_sorted = {k: np.round(v / (math.log(num_records, 2)+ epsil), round_dig) for k, v in ccs_distinct_dict_sorted.items()}
     else:        
         ccs_distinct_dict_sorted = {k: np.round(v, round_dig) for k, v in ccs_distinct_dict_sorted.items()}
-    # else:    
-    #     ccs_distinct_dict_sorted = {k: np.round(v, round_dig) for k, v in ccs_distinct_dict_sorted.items()}
-    #     # pdb.set_trace()
-    #     print('Patinet has less than two records.')    
+   
     return ccs_distinct_dict_sorted
 
 def create_stationary_procs(line_proc
@@ -156,11 +149,9 @@ def create_stationary_procs(line_proc
     num_records = len(line_proc_splitted)
     if (num_records > 1):
         proc_ccs_distinct_dict_sorted = {k: np.round(v / (math.log(num_records, 2)+ epsil), round_dig) for k, v in proc_ccs_distinct_dict_sorted.items()}
-    else:# (num_records == 1):
+    else:
         proc_ccs_distinct_dict_sorted = {k: np.round(v, round_dig) for k, v in proc_ccs_distinct_dict_sorted.items()}        
-    # else:    
-    #     pdb.set_trace()
-    #     print('Patinet has less than two records.')       
+     
     return proc_ccs_distinct_dict_sorted         
 
 # def diagnoses_embeding(line_diag, ccd_dict):

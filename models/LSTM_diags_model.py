@@ -156,7 +156,7 @@ def main(idx, drp, representing, epochs, reg_coeff, learning_rt,n_hid, batch_sz,
     num_classes = 2 
     num_time_steps=138
     seq_max_len = 138
-    d_diags = 60
+    d_diags = 138
     # embeding parameters
     one = 1
     zero = 0

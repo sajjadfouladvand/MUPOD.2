@@ -12,8 +12,8 @@ parser.add_argument("--viz_method", type=str, default="none", choices = ["pca","
 parser.add_argument("--features_to_show", type=str, default="meds_diags_procs", choices = ["meds_diags_procs","all"])    
 parser.add_argument("--sampled", type=int, default=1, choices = [0,1])    
 parser.add_argument("--sample_size", type=int, default=2000)    
-parser.add_argument("--sample_size_for_shap", type=float, default=0.01)  
-parser.add_argument("--perplex", type=int, default=20)    
+parser.add_argument("--sample_size_for_shap", type=float, default=0.05)  
+parser.add_argument("--perplex", type=int, default=15)    
 parser.add_argument("--num_it", type=int, default=2000)    
 parser.add_argument("--lr_rate", type=int, default=200)    
 
@@ -22,7 +22,9 @@ parser.add_argument("--feature_selection", type=int, default=0, choices = [0,1])
 parser.add_argument("--plot_shaps", type=int, default=0, choices = [0,1])    
 parser.add_argument("--plot_shaps_from_saved_model", type=int, default=0, choices = [0,1])    
 
-parser.add_argument("--trained_model_path", type=str, default="results/visualization_results/shap_results_sep_12/xgb_model.pkl")    
+# parser.add_argument("--trained_model_path", type=str, default="results/visualization_results/shap_results_sep_12/xgb_model.pkl")    
+parser.add_argument("--trained_model_path", type=str, default="saved_classical_ml_models/rf_model.pkl")    
+
 
 parser.add_argument("--plot_feature_dist_flag", type=int, default=0, choices = [0,1])    
 # parser.add_argument("--compute_shap", type=int, default=0, choices = [0,1])    

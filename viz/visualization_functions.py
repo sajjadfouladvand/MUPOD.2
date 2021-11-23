@@ -19,6 +19,7 @@ import csv
 import xgboost as xgb
 from sklearn.metrics import roc_auc_score
 import multiprocessing
+import lightgbm as lgb
 
 def performance_evaluation(rf_predictions
                         , test_data_for_eval
@@ -592,6 +593,69 @@ def feature_selection_dists(hist_meds_filepath
     
     print('test')
 
+def create_shap_and_plot(model, data, data_name):
+    # shap_values = shap.TreeExplainer(model).shap_values(data_all_sampled.iloc[:,1:-1])
+    plt.close()
+    # pdb.set_trace()
+    explainer = shap.Explainer(model, data)
+   
+    shap_values = explainer(data)
+
+    shap.plots.scatter(shap_values[:,"65_tcgp_2digit"], color=shap_values)
+    plt.savefig('results/visualization_results/scatter_65_tcgp_2digit_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    shap.plots.scatter(shap_values[:,"Age"], color=shap_values)
+    plt.savefig('results/visualization_results/scatter_Age_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    shap.plots.scatter(shap_values[:,"Sex"], color=shap_values)
+    plt.savefig('results/visualization_results/scatter_Sex_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    
+    shap.plots.beeswarm(shap_values)    
+    plt.savefig('results/visualization_results/beeswarm_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    shap.plots.beeswarm(shap_values)    
+    fig = plt.gcf()
+    fig.set_size_inches(18, 12)
+    fig.savefig('results/visualization_results/beeswarm_xgb_'+data_name+'.png', dpi=600)
+    plt.close(fig)
+
+    shap.plots.waterfall(shap_values[0])
+    plt.savefig('results/visualization_results/waterfall_0_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    shap.plots.waterfall(shap_values[0])
+    fig2 = plt.gcf()
+    fig2.set_size_inches(18, 12)
+    fig2.savefig('results/visualization_results/waterfall_0__xgb_'+data_name+'.png', dpi=600)
+    plt.close(fig2)
+
+    # visualize the first prediction's explanation with a force plot
+    # shap.plots.force(shap_values[0])
+    # plt.savefig('results/visualization_results/force_0_xgb_original.png')
+    # plt.close()
+    # fig = plt.gcf()
+    # fig.set_size_inches(18, 12)
+    # fig.savefig('results/visualization_results/force_0__xgb.png')
+    # plt.close()
+
+    # shap.plots.force(shap_values)
+    # shap.force_plot(explainer.expected_value[0], shap_values[0])
+    
+    shap.plots.bar(shap_values)
+    plt.savefig('results/visualization_results/bar_xgb_original_'+data_name+'.png', dpi=600)
+    plt.close()
+
+    fig3 = plt.gcf()
+    fig3.set_size_inches(18, 12)
+    fig3.savefig('results/visualization_results/bar_xgb_'+data_name+'.png', dpi=600)
+    plt.close(fig3)
+    return shap_values    
+
 def plot_shaps (train_stationary_normalized_filtered_filename
                 , validation_stationary_normalized_filtered_filename
                 , test_stationary_normalized_filtered_filename
@@ -637,8 +701,11 @@ def plot_shaps (train_stationary_normalized_filtered_filename
     meds_features = med_freq_sorted.iloc[:int(cut_off_th_med)+1].Feature.tolist()
     diags_features = diag_freq_sorted.iloc[:int(cut_off_th_diag)+1].Feature.tolist()
     procs_features = proc_freq_sorted.iloc[:int(cut_off_th_proc)+1].Feature.tolist()
-    feature_to_keep = ['ENROLID'] + meds_features + diags_features + procs_features + ['Age', 'Sex', 'Label']
-
+    feature_to_keep = ['ENROLID'] + meds_features[:10] + diags_features[:10] + procs_features[:10] + ['Age', 'Sex', 'Label']
+    if '-1000_ccs_proc' in feature_to_keep:
+        feature_to_keep.remove('-1000_ccs_proc')
+    if '-1000_ccs_diag' in  feature_to_keep:  
+        feature_to_keep.remove('-1000_ccs_diag')
     # pdb.set_trace()
     train_data_features_filtered =  train_data.loc[:, train_data.columns.isin(feature_to_keep)]
     validation_data_features_filtered =  validation_data.loc[:, validation_data.columns.isin(feature_to_keep)]
@@ -658,9 +725,9 @@ def plot_shaps (train_stationary_normalized_filtered_filename
     data_all_sampled_train.to_csv('results/visualization_results/data_all_sampled_train_for_shap.csv', index=False)
     data_all_sampled_test.to_csv('results/visualization_results/data_all_sampled_test_for_shap.csv', index=False)
     # pdb.set_trace()
-    n_estimators = [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
+    n_estimators = [100, 150, 200, 250, 300, 350]# [int(x) for x in np.linspace(start = 200, stop = 2000, num = 10)]
     # Maximum number of levels in tree
-    max_depth = [4, 8, 16, 32]#, 64, 128]# [int(x) for x in np.linspace(10, 110, num = 11)]
+    max_depth = [4, 8, 16]#, 32]#, 64, 128]# [int(x) for x in np.linspace(10, 110, num = 11)]
     gamma = [0.001, 0.01, 0.1, 1, 10]
     learning_rate = [0.0001, 0.001, 0.01, 0.1, 1]
     # Create the random grid
@@ -669,7 +736,18 @@ def plot_shaps (train_stationary_normalized_filtered_filename
                    , 'gamma': gamma
                    , 'learning_rate':learning_rate
                    }
-    randomCV = RandomizedSearchCV(estimator=xgb.XGBClassifier(booster='gbtree', verbosity=1, n_jobs=multiprocessing.cpu_count()-1, objective='binary:logistic', use_label_encoder=False), param_distributions=hyperparameters, n_iter=10, cv=3,scoring="f1")
+    # pdb.set_trace()
+    # params = {"max_bin": 512,"learning_rate": 0.05,"boosting_type": "gbdt","objective": "binary","metric": "binary_logloss","num_leaves": 10,"verbose": -1,"min_data": 100,"boost_from_average": True}
+    # d_train = lgb.Dataset(data_all_sampled_train.iloc[:,1:-1], label=data_all_sampled_train['Label'])
+    # d_test = lgb.Dataset(data_all_sampled_test.iloc[:,1:-1], label=data_all_sampled_test['Label'])
+    
+    # model = lgb.train(params, d_train, 10000, valid_sets=[d_test], early_stopping_rounds=50, verbose_eval=1000)
+    # explainer = shap.TreeExplainer(model)
+    # shap_values = explainer.shap_values(data_all_sampled.iloc[:,1:-1])
+    # shap.summary_plot(shap_values, data_all_sampled.iloc[:,1:-1])
+
+
+    randomCV = RandomizedSearchCV(estimator=xgb.XGBClassifier(booster='gbtree', verbosity=1, n_jobs=multiprocessing.cpu_count()-1, early_stopping_rounds=10, objective='binary:logistic', use_label_encoder=False), param_distributions=hyperparameters, n_iter=10, cv=3,scoring="f1")
 
     # model = xgb.XGBClassifier(objective='binary:logistic')
     # model.fit(data_all_sampled_train.iloc[:,1:-1], data_all_sampled_train['Label'])
@@ -685,15 +763,17 @@ def plot_shaps (train_stationary_normalized_filtered_filename
         pickle.dump(randomCV,f)
     # pdb.set_trace()
     print('===========================')
-    print('Creating shap plots ....')    
-    explainer = shap.Explainer(model, data_all_sampled_train.iloc[:,1:-1])
-    shap_values = explainer(data_all_sampled_train.iloc[:,1:-1])
-    shap.plots.beeswarm(shap_values)    
-    fig = plt.gcf()
-    fig.set_size_inches(18, 12)
-    fig.savefig('results/visualization_results/beeswarm_xgb.png')
-    plt.close()
+    print('Creating shap plots using test data ....')    
+    shap_values = create_shap_and_plot(model, data_all_sampled_test.iloc[:,1:-1], 'test')
 
+    with open('results/visualization_results/shap_values_uing_xgb_and_tes_data.pkl','wb') as f:
+        pickle.dump(shap_values,f)
+
+    print('Creating shap plots using all data ....')    
+    shap_values = create_shap_and_plot(model, data_all_sampled.iloc[:,1:-1], 'alldata')
+
+    with open('results/visualization_results/shap_values_uing_xgb_and_alldata_data.pkl','wb') as f:
+        pickle.dump(shap_values,f)
 
     predictions = model.predict(data_all_sampled_test.iloc[:,1:-1])
 
@@ -706,9 +786,10 @@ def plot_shaps (train_stationary_normalized_filtered_filename
     write_results(tn, tp, fn, fp, 
                 accuracy, precision, recall, specificity
                 , F1, rf_test_auc
-                , 'xgb')
+                , 'xgb_for_shap_')
     # pdb.set_trace()
     print('Test')
+
 
 def plot_shaps_from_saved_model (test_stationary_normalized_filtered_filename
                 , hist_meds_filepath
@@ -717,9 +798,18 @@ def plot_shaps_from_saved_model (test_stationary_normalized_filtered_filename
                 , sample_size_for_shap   
                 , trained_model_path                     
             ):
-    
+    pdb.set_trace()
     print('Reading the test data ....')
     test_data = pd.read_csv(test_stationary_normalized_filtered_filename)
+    test_data = test_data.sample(frac=1).reset_index(drop=True) 
+
+    randomCV =  pickle.load(open(trained_model_path, 'rb'))
+    model = randomCV.best_estimator_
+    explainer = shap.Explainer(model, test_data.iloc[:,1:-1])
+    shap_values = explainer(test_data.iloc[:,1:-1])
+    shap.plots.beeswarm(shap_values, plot_size=[14,8])    
+
+
 
     med_freq = pd.read_csv(hist_meds_filepath)
     diag_freq = pd.read_csv(hist_diags_filepath)

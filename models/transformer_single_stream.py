@@ -21,9 +21,11 @@ from keras import regularizers
 #import matplotlib.pyplot as plt
 
 #tf.enable_eager_execution() 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 tf.keras.backend.clear_session()
 random.seed(time.clock())
+
+# pdb.set_trace()
 
 num_time_steps=138
 d_input = 48
@@ -53,6 +55,34 @@ regu_factor = 0.000001#random.choice(regularization_factor_pool)
 num_heads = 4#random.choice(num_heads_pool)
 # early_stopping_threshold=random.choice(early_stopping_threshold_pool)
 
+def concat_csv_files(train_data_filename, validation_data_filename, stream_name):
+    # pdb.set_trace()
+    # remove the file if exist
+    if os.path.exists('outputs/train_and_validation_'+stream_name+'_represented.csv'): 
+        os.remove('outputs/train_and_validation_'+stream_name+'_represented.csv')
+    
+    # Write train data
+    with open(train_data_filename) as train_data_file, open('outputs/train_and_validation_'+stream_name+'_represented.csv', 'a') as train_val_file:
+        for line in train_data_file:
+            train_val_file.write(line)
+    # pdb.set_trace()
+    # Write validation data
+    with open(validation_data_filename) as validation_data_file, open('outputs/train_and_validation_'+stream_name+'_represented.csv', 'a') as train_val_file:
+        for line in validation_data_file:
+            if line.split(',')[0] == 'ENROLID':
+                continue
+            train_val_file.write(line)
+
+
+validation_filename_meds_diags_demogs='outputs/validation_meds_diags_procs_demogs_represented.csv'
+train_filename='outputs/train_meds_diags_procs_demogs_represented.csv'
+
+# concat_csv_files(train_filename, validation_filename_meds_diags_demogs, 'meds_diags_procs_demogs')
+
+# validation_filename_meds_diags_demogs='outputs/validation_meds_diags_procs_demogs_represented.csv'
+# train_filename='outputs/train_and_validation_meds_diags_procs_demogs_represented.csv'
+
+
 class ReadingData(object):
     def __init__(self, path_t="", path_l=""):#, path_s=""):
         
@@ -62,7 +92,7 @@ class ReadingData(object):
               # counter=0
               for line in f:
                   # counter+=1
-                  # if counter>5000:
+                  # if counter>500:
                   #   print('======================================WARNING=============')
                   #   print('You are reading topk samples.')
                   #   break
@@ -458,13 +488,10 @@ def train_step(inp, tar):
 #=====================================================
 #==============Reading data===========================
 
-
-validation_filename_meds_diags_demogs='outputs/validation_meds_diags_procs_demogs_represented.csv'
-# validation_labels_filename='validation_labels_shuffled_balanced.csv'
+print('Reading validation data ...')
 validationset = ReadingData(path_t=validation_filename_meds_diags_demogs)#, path_l=validation_labels_filename)
 
 validation_data = validationset.data
-# validation_label = validationset.labels
 validation_data_ar=np.array(validation_data)
 validation_enrolids = validation_data_ar[:,0]
 validation_set=np.reshape(validation_data_ar[:,one:-5],(len(validation_data_ar), num_time_steps, d_input))   
@@ -473,8 +500,7 @@ validationset_labels=validation_data_ar[:,-5:-3]
 validation_split_k_all = find_divisables(len(validation_set))
 validation_split_k = int(len(validation_set)/validation_split_k_all[1])
 
-train_filename='outputs/train_meds_diags_procs_demogs_represented.csv'
-# train_labels_filename='training_labels_shuffled_balanced.csv'
+print('Reading train data ...')
 trainset_meds = ReadingData(path_t=train_filename)#, path_l=train_labels_filename)
 # pdb.set_trace() 
 train_set_shape = np.shape(trainset_meds.data)
@@ -521,22 +547,22 @@ with open("results/single_stream_transformer/training_loss_singleStream_transfor
     #==================================================================
     #==================================================================
     #==================Early stopping==================================
-    if epoch % 5 ==0:
-      # pdb.set_trace()
-      validation_set_split=tf.split(value=validation_set, num_or_size_splits=validation_split_k)
-      logits_validation_all = []
-      # logits_validation_all = np.zeros((len(medications_validation), num_classes))
-      for i in range(len(validation_set_split)):
-        val_enc_mask = create_padding_mask(validation_set_split[i])
+    # if epoch % 5 ==0:
+    #   # pdb.set_trace()
+    #   validation_set_split=tf.split(value=validation_set, num_or_size_splits=validation_split_k)
+    #   logits_validation_all = []
+    #   # logits_validation_all = np.zeros((len(medications_validation), num_classes))
+    #   for i in range(len(validation_set_split)):
+    #     val_enc_mask = create_padding_mask(validation_set_split[i])
         
-        logits_validation = transformer(validation_set_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
-        logits_validation_all.extend(logits_validation)
-      # pdb.set_trace()              
-      # val_enc_mask = create_padding_mask(medications_validation, diagnoses_validation)
-      # logits_validation = transformer(medications_validation, diagnoses_validation, validation_demog_info, False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
-      val_loss= loss_function(validationset_labels, logits_validation_all)
-      val_loss_file.write(str(val_loss.numpy()))
-      val_loss_file.write("\n")
+    #     logits_validation = transformer(validation_set_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+    #     logits_validation_all.extend(logits_validation)
+    #   # pdb.set_trace()              
+    #   # val_enc_mask = create_padding_mask(medications_validation, diagnoses_validation)
+    #   # logits_validation = transformer(medications_validation, diagnoses_validation, validation_demog_info, False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+    #   val_loss= loss_function(validationset_labels, logits_validation_all)
+    #   val_loss_file.write(str(val_loss.numpy()))
+    #   val_loss_file.write("\n")
    
 # pdb.set_trace()   
 checkpoint_path = "saved_models/checkpoints_single_stream/trained_model_" + str(model_number)

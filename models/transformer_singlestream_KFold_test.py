@@ -25,38 +25,36 @@ from keras import regularizers
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # min_epoch = 10
-F1_idx = 10
-#================= Read test performances and find the best model =================
-testing_filename_meds_diags_procs_demogs='outputs/test_meds_diags_procs_demogs_represented.csv'
-
-# pdb.set_trace()
-validation_res=[]
-with open("results/single_stream_transformer/validation_results_single_stream_tranformer.csv") as validation_results:
-  next(validation_results)
-  for line in validation_results:
-      line_perf=line.replace(',\n','').split(',')
-      #pdb.set_trace()
-      # line_perf[17].replace('\n','')
-      line_perf = [float(i) for i in line_perf]  
-      validation_res.append(line_perf)
-# pdb.set_trace()
-validation_res_ar=np.array(validation_res)
-best_validation_res_ar=validation_res_ar[np.argmax(validation_res_ar[:,F1_idx]),:]
-best_model_number= int(best_validation_res_ar[0])
-learning_rate= best_validation_res_ar[1]
-num_layers=int(best_validation_res_ar[2])
-num_heads = int(best_validation_res_ar[3])
-BATCH_SIZE=int(best_validation_res_ar[4])
-dropout_rate=best_validation_res_ar[5]
-EPOCHS=int(best_validation_res_ar[6])
-optimum_threshold=best_validation_res_ar[17]
-#===================================================
-#===================================================
+# F1_idx = 10
+# #================= Read test performances and find the best model =================
+# testing_filename_meds_diags_procs_demogs='outputs/test_meds_diags_procs_demogs_represented.csv'
+# # pdb.set_trace()
+# validation_res=[]
+# with open("results/single_stream_transformer/validation_results_single_stream_tranformer.csv") as validation_results:
+#   next(validation_results)
+#   for line in validation_results:
+#       line_perf=line.replace(',\n','').split(',')
+#       #pdb.set_trace()
+#       # line_perf[17].replace('\n','')
+#       line_perf = [float(i) for i in line_perf]  
+#       validation_res.append(line_perf)
+# # pdb.set_trace()
+# validation_res_ar=np.array(validation_res)
+# best_validation_res_ar=validation_res_ar[np.argmax(validation_res_ar[:,F1_idx]),:]
+# best_model_number= int(best_validation_res_ar[0])
+# learning_rate= best_validation_res_ar[1]
+# num_layers=int(best_validation_res_ar[2])
+# num_heads = int(best_validation_res_ar[3])
+# BATCH_SIZE=int(best_validation_res_ar[4])
+# dropout_rate=best_validation_res_ar[5]
+# EPOCHS=int(best_validation_res_ar[6])
+# optimum_threshold=best_validation_res_ar[17]
+# #===================================================
+# #===================================================
 model_number = 3000
 
-
-tf.keras.backend.clear_session()
-random.seed(time.clock())
+# tf.keras.backend.clear_session()
+# random.seed(time.clock())
 
 num_time_steps=138
 d_input = 48
@@ -394,8 +392,6 @@ class Transformer(tf.keras.Model):
 #pdb.set_trace()
 #learning_rate = CustomSchedule(d_model)
 
-optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, 
-                                     epsilon=1e-9)
 
 # temp_learning_rate_schedule = CustomSchedule(d_model)
 
@@ -412,183 +408,196 @@ def loss_function(real, pred):
 
   return tf.reduce_mean(loss)#tf.reduce_mean(loss)
 
-transformer = Transformer(num_layers, d_model, num_heads, dff, 
-  input_vocab_size, target_vocab_size, dropout_rate)
+def main(idx,testing_filename_meds_diags_procs_demogs, checkpoint_path, best_model_number, learning_rate, num_layers, num_heads, BATCH_SIZE, dropout_rate, EPOCHS, optimum_threshold): 
+
+
+  tf.keras.backend.clear_session()
+  random.seed(time.clock())
+
+  optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, 
+                                       epsilon=1e-9)
+
+  transformer = Transformer(num_layers, d_model, num_heads, dff, 
+    input_vocab_size, target_vocab_size, dropout_rate)
 
 
 
-# ======= Restoring the model
-# pdb.set_trace()
-checkpoint_path =  "saved_models/checkpoints_single_stream/trained_model_" +str(best_model_number) 
-checkpoint = tf.train.Checkpoint(transformer=transformer,
-                           optimizer=optimizer)
-# c_manager = tf.train.CheckpointManager(checkpoint, checkpoint_path, max_to_keep=optimum_epoch)#, ...)
-c_manager = tf.train.CheckpointManager(checkpoint, checkpoint_path, max_to_keep=5)#, ...)
+  # ======= Restoring the model
+  # pdb.set_trace()
+  # checkpoint_path =  "saved_models/checkpoints_single_stream/trained_model_" +str(best_model_number) 
+  checkpoint = tf.train.Checkpoint(transformer=transformer,
+                             optimizer=optimizer)
+  # c_manager = tf.train.CheckpointManager(checkpoint, checkpoint_path, max_to_keep=optimum_epoch)#, ...)
+  c_manager = tf.train.CheckpointManager(checkpoint, checkpoint_path, max_to_keep=5)#, ...)
 
-if c_manager.latest_checkpoint:
-    tf.print("-----------Restoring from {}-----------".format(
-        c_manager.latest_checkpoint))
-    checkpoint.restore(c_manager.latest_checkpoint)
-    # optimum_epoch = c_manager.latest_checkpoint.split(sep='ckpt-')[-1]
+  if c_manager.latest_checkpoint:
+      tf.print("-----------Restoring from {}-----------".format(
+          c_manager.latest_checkpoint))
+      checkpoint.restore(c_manager.latest_checkpoint)
+      # optimum_epoch = c_manager.latest_checkpoint.split(sep='ckpt-')[-1]
 
-# if optimum_epoch == '':
-#     if c_manager.latest_checkpoint:
-#         tf.print("-----------Restoring from {}-----------".format(
-#             c_manager.latest_checkpoint))
-#         checkpoint.restore(c_manager.latest_checkpoint)
-#         optimum_epoch = c_manager.latest_checkpoint.split(sep='ckpt-')[-1]
-#     else:
-#         tf.print("-----------Initializing from scratch-----------")
-# else:    
-#     checkpoint_fname = checkpoint_path + '/'+ 'ckpt-' + str(optimum_epoch)
-#     tf.print("-----------Restoring from {}-----------".format(checkpoint_fname))
-#     checkpoint.restore(checkpoint_fname)
-
-
-# model_path =  "./checkpoints/trained_model_" +str(best_model_number) + '_' + str(optimum_epoch) + '/'
-# transformer.restoreVariables()
-# checkpoint_path =  "./checkpoints/trained_model_" +str(best_model_number) #+ '_' + str(optimum_epoch)
-# ckpt = tf.train.Checkpoint(transformer=transformer,
-#                            optimizer=optimizer)
-# ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)                           
-# if checkpoint_path+'/ckpt-'+str(optimum_epoch):
-#   ckpt.restore(checkpoint_path+'/ckpt-'+str(optimum_epoch)).assert_consumed()
-#   #ckpt.restore(ckpt_manager.latest_checkpoint).assert_consumed()
-# else:
-#   pdb.set_trace()
-#   print("Error: checkpoint wasn't found!")
+  # if optimum_epoch == '':
+  #     if c_manager.latest_checkpoint:
+  #         tf.print("-----------Restoring from {}-----------".format(
+  #             c_manager.latest_checkpoint))
+  #         checkpoint.restore(c_manager.latest_checkpoint)
+  #         optimum_epoch = c_manager.latest_checkpoint.split(sep='ckpt-')[-1]
+  #     else:
+  #         tf.print("-----------Initializing from scratch-----------")
+  # else:    
+  #     checkpoint_fname = checkpoint_path + '/'+ 'ckpt-' + str(optimum_epoch)
+  #     tf.print("-----------Restoring from {}-----------".format(checkpoint_fname))
+  #     checkpoint.restore(checkpoint_fname)
 
 
-# checkpoint_path =  "./checkpoints/trained_model_" +str(best_model_number) + '_' + str(optimum_epoch)
-# ckpt = tf.train.Checkpoint(transformer=transformer)#, optimizer=optimizer)
-# ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
-
-# # if a checkpoint exists, restore the latest checkpoint.
-# if ckpt_manager.latest_checkpoint:
-#   ckpt.restore(ckpt_manager.latest_checkpoint).assert_consumed()
-#   print ('Latest checkpoint restored-TWO STREAM NODEL!!')
-#   print('MOdel number is: ', best_model_number)
-#   print('Early stopping epoch is, ', optimum_epoch)
-
-# testing_labels_filename='testing_labels_shuffled_balanced.csv'
-testset = ReadingData(path_t=testing_filename_meds_diags_procs_demogs)#, path_l=testing_labels_filename)
-
-testing_data = testset.data
-# testing_label = testset.labels
-testing_data_ar=np.array(testing_data)
-testing_enrolids = testing_data_ar[:,0]
-testing_set=np.reshape(testing_data_ar[:,one:-5],(len(testing_data_ar), num_time_steps, d_input))   
-testset_labels= testing_data_ar[:,-5:-3]#np.array(testing_label)
-
-test_split_k_all = find_divisables(len(testing_set))
-testing_split_k = int(len(testing_set)/test_split_k_all[1])
-#========================================
-# pdb.set_trace()
-# sess = tf.Session()
-# variables_names = [v.name for v in transformer.trainable_variables()]
-# values = sess.run(variables_names)
-# for k, v in zip(variables_names, values):
-#     print("Variable: ", k)
-#     print("Shape: ", v.shape)
-#     print(v)
-# early_stopping=False
+  # model_path =  "./checkpoints/trained_model_" +str(best_model_number) + '_' + str(optimum_epoch) + '/'
+  # transformer.restoreVariables()
+  # checkpoint_path =  "./checkpoints/trained_model_" +str(best_model_number) #+ '_' + str(optimum_epoch)
+  # ckpt = tf.train.Checkpoint(transformer=transformer,
+  #                            optimizer=optimizer)
+  # ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)                           
+  # if checkpoint_path+'/ckpt-'+str(optimum_epoch):
+  #   ckpt.restore(checkpoint_path+'/ckpt-'+str(optimum_epoch)).assert_consumed()
+  #   #ckpt.restore(ckpt_manager.latest_checkpoint).assert_consumed()
+  # else:
+  #   pdb.set_trace()
+  #   print("Error: checkpoint wasn't found!")
 
 
-#=========================== Testing
-#===== Breaking test set to k sets
-# pdb.set_trace()
+  # checkpoint_path =  "./checkpoints/trained_model_" +str(best_model_number) + '_' + str(optimum_epoch)
+  # ckpt = tf.train.Checkpoint(transformer=transformer)#, optimizer=optimizer)
+  # ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
 
-testing_set_split=tf.split(value=testing_set, num_or_size_splits=testing_split_k)
-logits_testing_all = list()
-# logits_validation_all = np.zeros((len(medications_validation), num_classes))
-for i in range(len(testing_set_split)):
-  val_enc_mask = create_padding_mask(testing_set_split[i])
-  logits_testing = transformer(testing_set_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
-  logits_testing_all.extend(logits_testing)
-predictions_testing_soft=tf.nn.softmax(logits_testing_all)
-np.savetxt('results/single_stream_transformer/restoring_best_singlestreamT_model_testing_enrolids.csv', testing_enrolids, delimiter=',')
-np.savetxt('results/single_stream_transformer/restoring_best_signlestreamT_model_predictions_testing_soft'+'_'+str(model_number)+'.csv', predictions_testing_soft)
-np.savetxt('results/single_stream_transformer/restoring_best_singlestreamT_model_logits_testing'+'_'+str(model_number)+'.csv', logits_testing_all)
-# pdb.set_trace() 
+  # # if a checkpoint exists, restore the latest checkpoint.
+  # if ckpt_manager.latest_checkpoint:
+  #   ckpt.restore(ckpt_manager.latest_checkpoint).assert_consumed()
+  #   print ('Latest checkpoint restored-TWO STREAM NODEL!!')
+  #   print('MOdel number is: ', best_model_number)
+  #   print('Early stopping epoch is, ', optimum_epoch)
+
+  # testing_labels_filename='testing_labels_shuffled_balanced.csv'
+  testset = ReadingData(path_t=testing_filename_meds_diags_procs_demogs)#, path_l=testing_labels_filename)
+
+  testing_data = testset.data
+  # testing_label = testset.labels
+  testing_data_ar=np.array(testing_data)
+  testing_enrolids = testing_data_ar[:,0]
+  testing_set=np.reshape(testing_data_ar[:,one:-5],(len(testing_data_ar), num_time_steps, d_input))   
+  testset_labels= testing_data_ar[:,-5:-3]#np.array(testing_label)
+
+  test_split_k_all = find_divisables(len(testing_set))
+  testing_split_k = int(len(testing_set)/test_split_k_all[1])
+  #========================================
+  # pdb.set_trace()
+  # sess = tf.Session()
+  # variables_names = [v.name for v in transformer.trainable_variables()]
+  # values = sess.run(variables_names)
+  # for k, v in zip(variables_names, values):
+  #     print("Variable: ", k)
+  #     print("Shape: ", v.shape)
+  #     print(v)
+  # early_stopping=False
 
 
-#============ Thresholding for test=================
-probabilities_test_pos=predictions_testing_soft.numpy()[:,0]
-# current_threshold_temp=0
-# thresholding_results=np.zeros((num_thresholds, 11)) 
-# y = np.array([1, 1, 2, 2])
-# pred = np.array([0.1, 0.4, 0.35, 0.8])
-# pdb.set_trace()
-test_auc = metrics.roc_auc_score(testset_labels[:,0], probabilities_test_pos)
-# test_auc = metrics.auc(fpr, tpr)
-# rf_test_auc=roc_auc_score(testset_labels[:,0], best_rf_model.predict_proba(test_data_ar[:,1:-2])[:,1])
-tp_test=0
-tn_test=0
-fp_test=0
-fn_test=0
-for i in range(len(probabilities_test_pos)):      
-    if(probabilities_test_pos[i]<optimum_threshold and testset_labels[i,0]==0):
-        tn_test=tn_test+1
-    elif(probabilities_test_pos[i]>=optimum_threshold and testset_labels[i,0]==1):
-        tp_test=tp_test+1
-    elif(probabilities_test_pos[i]>=optimum_threshold and testset_labels[i,0]==0):
-        fp_test=fp_test+1
-    elif(probabilities_test_pos[i]<optimum_threshold and testset_labels[i,0]==1):
-        fn_test=fn_test+1
-if((tp_test+fp_test)==0):
-    precision_test=0
-else:
-    precision_test=tp_test/(tp_test+fp_test)
-recall_test=tp_test/(tp_test+fn_test)
-sensitivity_test=tp_test/(tp_test+fn_test)
-specificity_test=tn_test/(tn_test+fp_test)    
-if (precision_test+recall_test) !=0:
-    F1Score_test=(2*precision_test*recall_test)/(precision_test+recall_test)      
-else:
-    F1Score_test=0        
-accuracy_test= (tp_test+tn_test)/(tp_test+tn_test+fp_test+fn_test)
-# pdb.set_trace()
+  #=========================== Testing
+  #===== Breaking test set to k sets
+  # pdb.set_trace()
 
-header_results_filename= "Model Number (SINGLE STREAM), Learning Rate, Number of Layeres, Batch Size, Dropout Rate, Number of EPOCHS, test Accuracy, test Precision, test Recall, test F1-Score, test Specificity, test TP, test TN , test FP, test FN, test auc, test optimum threshold \n"
-print("=================== SINGLE STREAM MODEL======================")
-#pdb.set_trace()
-with open("results/single_stream_transformer/restoring_best_singlestreamT_model_test_results__thresholdin.csv", 'w') as results_file:
-      results_file.write("".join(["".join(x) for x in header_results_filename]))  
-      results_file.write(str(best_model_number))
-      results_file.write(",")
-      results_file.write(str(learning_rate))
-      results_file.write(",")
-      results_file.write(str(num_layers))
-      results_file.write(",")
-      results_file.write(str(BATCH_SIZE))
-      results_file.write(",")
-      results_file.write(str(dropout_rate))
-      results_file.write(",")
-      results_file.write(str(EPOCHS))
-      results_file.write(",")
-      results_file.write(str(accuracy_test))
-      results_file.write(", ")
-      results_file.write(str(precision_test))
-      results_file.write(", ")
-      results_file.write(str(recall_test))
-      results_file.write(", ")
-      results_file.write(str(F1Score_test))
-      results_file.write(", ")
-      results_file.write(str(specificity_test))
-      results_file.write(", ")                     
-      results_file.write(str(tp_test))
-      results_file.write(", ")
-      results_file.write(str(tn_test))
-      results_file.write(", ")
-      results_file.write(str(fp_test))
-      results_file.write(", ")
-      results_file.write(str(fn_test))
-      results_file.write(",")
-      results_file.write(str(test_auc))
-      results_file.write(",")
-      results_file.write(str(optimum_threshold))
-      # results_file.write(",")
-      # results_file.write(str(optimum_epoch))
-      # results_file.write(",")  
-      # results_file.write(str(regu_factor))
-      results_file.write("\n")  
+  testing_set_split=tf.split(value=testing_set, num_or_size_splits=testing_split_k)
+  logits_testing_all = list()
+  # logits_validation_all = np.zeros((len(medications_validation), num_classes))
+  for i in range(len(testing_set_split)):
+    val_enc_mask = create_padding_mask(testing_set_split[i])
+    logits_testing = transformer(testing_set_split[i], False, enc_padding_mask=val_enc_mask, look_ahead_mask=None, dec_padding_mask=None)
+    logits_testing_all.extend(logits_testing)
+  predictions_testing_soft=tf.nn.softmax(logits_testing_all)
+  # np.savetxt('results/single_stream_transformer/restoring_best_singlestreamT_model_testing_enrolids_KFold.csv', testing_enrolids, delimiter=',')
+  # the next two lines are commented only for imb
+  # np.savetxt('results/single_stream_transformer/restoring_best_signlestreamT_model_predictions_testing_soft'+'_'+str(model_number)+'_KFold'+str(idx)+'.csv', predictions_testing_soft)
+  # np.savetxt('results/single_stream_transformer/restoring_best_singlestreamT_model_logits_testing'+'_'+str(model_number)+'_KFold'+str(idx)+'.csv', logits_testing_all)
+  # pdb.set_trace() 
+
+
+  #============ Thresholding for test=================
+  probabilities_test_pos=predictions_testing_soft.numpy()[:,0]
+  # current_threshold_temp=0
+  # thresholding_results=np.zeros((num_thresholds, 11)) 
+  # y = np.array([1, 1, 2, 2])
+  # pred = np.array([0.1, 0.4, 0.35, 0.8])
+  # pdb.set_trace()
+  test_auc = metrics.roc_auc_score(testset_labels[:,0], probabilities_test_pos)
+  # test_auc = metrics.auc(fpr, tpr)
+  # rf_test_auc=roc_auc_score(testset_labels[:,0], best_rf_model.predict_proba(test_data_ar[:,1:-2])[:,1])
+  tp_test=0
+  tn_test=0
+  fp_test=0
+  fn_test=0
+  for i in range(len(probabilities_test_pos)):      
+      if(probabilities_test_pos[i]<optimum_threshold and testset_labels[i,0]==0):
+          tn_test=tn_test+1
+      elif(probabilities_test_pos[i]>=optimum_threshold and testset_labels[i,0]==1):
+          tp_test=tp_test+1
+      elif(probabilities_test_pos[i]>=optimum_threshold and testset_labels[i,0]==0):
+          fp_test=fp_test+1
+      elif(probabilities_test_pos[i]<optimum_threshold and testset_labels[i,0]==1):
+          fn_test=fn_test+1
+  if((tp_test+fp_test)==0):
+      precision_test=0
+  else:
+      precision_test=tp_test/(tp_test+fp_test)
+  recall_test=tp_test/(tp_test+fn_test)
+  sensitivity_test=tp_test/(tp_test+fn_test)
+  specificity_test=tn_test/(tn_test+fp_test)    
+  if (precision_test+recall_test) !=0:
+      F1Score_test=(2*precision_test*recall_test)/(precision_test+recall_test)      
+  else:
+      F1Score_test=0        
+  accuracy_test= (tp_test+tn_test)/(tp_test+tn_test+fp_test+fn_test)
+  # pdb.set_trace()
+  return accuracy_test, precision_test, recall_test, F1Score_test, specificity_test, tp_test, tn_test, fp_test, fn_test, test_auc
+  # header_results_filename= "Model Number (SINGLE STREAM), Learning Rate, Number of Layeres, Batch Size, Dropout Rate, Number of EPOCHS, test Accuracy, test Precision, test Recall, test F1-Score, test Specificity, test TP, test TN , test FP, test FN, test auc, test optimum threshold \n"
+  # print("=================== SINGLE STREAM MODEL======================")
+  # #pdb.set_trace()
+  # with open("results/single_stream_transformer/restoring_best_singlestreamT_model_test_results__thresholdin.csv", 'w') as results_file:
+  #       results_file.write("".join(["".join(x) for x in header_results_filename]))  
+  #       results_file.write(str(best_model_number))
+  #       results_file.write(",")
+  #       results_file.write(str(learning_rate))
+  #       results_file.write(",")
+  #       results_file.write(str(num_layers))
+  #       results_file.write(",")
+  #       results_file.write(str(BATCH_SIZE))
+  #       results_file.write(",")
+  #       results_file.write(str(dropout_rate))
+  #       results_file.write(",")
+  #       results_file.write(str(EPOCHS))
+  #       results_file.write(",")
+  #       results_file.write(str(accuracy_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(precision_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(recall_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(F1Score_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(specificity_test))
+  #       results_file.write(", ")                     
+  #       results_file.write(str(tp_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(tn_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(fp_test))
+  #       results_file.write(", ")
+  #       results_file.write(str(fn_test))
+  #       results_file.write(",")
+  #       results_file.write(str(test_auc))
+  #       results_file.write(",")
+  #       results_file.write(str(optimum_threshold))
+  #       # results_file.write(",")
+  #       # results_file.write(str(optimum_epoch))
+  #       # results_file.write(",")  
+  #       # results_file.write(str(regu_factor))
+  #       results_file.write("\n")  
+
+if __name__ == "__main__": main(idx,testing_filename_meds_diags_procs_demogs, checkpoint_path, best_model_number, learning_rate, num_layers, num_heads, BATCH_SIZE, dropout_rate, EPOCHS, optimum_threshold) 
+

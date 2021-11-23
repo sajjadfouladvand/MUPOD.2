@@ -28,7 +28,7 @@ def concat_csv_files(train_data_filename, validation_data_filename, stream_name)
 model_number = 1000
 dropout_r = 0.4
 representing = True
-num_epochs = 10
+num_epochs = 1
 regu_fact = 0.000001
 learning_r = 0.01
 n_hid = 48

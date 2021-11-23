@@ -9,8 +9,8 @@ import time
 
 model_number = 2000
 dropout_r = 0.4
-representing = False # I set it false only for the embedding test. It was True
-num_epochs = 1# I changed it to 5 only to test the embedding part. It was 10
+representing = True 
+num_epochs = 1
 regu_fact = 0.000001
 learning_r = 0.01
 n_hid = 16

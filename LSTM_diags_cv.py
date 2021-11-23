@@ -10,7 +10,7 @@ import time
 model_number = 3000
 dropout_r = 0.4
 representing = True
-num_epochs = 10
+num_epochs = 1
 regu_fact = 0.000001
 learning_r = 0.01
 n_hid = 16

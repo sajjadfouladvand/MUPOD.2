@@ -12,8 +12,11 @@ import matplotlib.pyplot as plt
 icd10_ind=0
 icd9_ind=1
 
+compute_for_imb = True
+imb_ratio = 10
 
-
+if compute_for_imb == True:
+    test_data_imb = pd.read_csv('outputs/test_demographics_shuffled_1_to_'+str(imb_ratio)+'.csv')
 
 data_all = pd.ExcelFile('ort_tool/icd_codes_for_ort.xlsx')
 
@@ -177,6 +180,7 @@ test_set_ort_scores = pd.DataFrame(columns=['ENROLID', 'fam_hist_alcohol', 'fam_
 test_metadata = pd.read_csv('outputs/test_demographics.csv')
 with open('outputs/test_medications_shuffled.csv') as test_meds_file, open('outputs/test_diagnoses_shuffled.csv') as test_diags_file, open('outputs/test_procedures_shuffled.csv') as test_procs_file:
     line_counter=-1
+    # pdb.set_trace()
     for line_diag in test_diags_file:
         line_counter+=1
         # if line_counter == 1000:
@@ -188,8 +192,13 @@ with open('outputs/test_medications_shuffled.csv') as test_meds_file, open('outp
         line_diag_splitted = [list(y) for x, y in itertools.groupby(line_diag[1:], lambda z: z == 'EOV') if not x]            
         if len(line_diag_splitted) == 0:
             line_counter-=1
-            continue
+            continue           
         current_enrolid = line_diag[0]
+        
+        if (compute_for_imb == True) and not(float(current_enrolid) in test_data_imb['ENROLID'].values):
+            line_counter-=1
+            continue         
+        
         test_set_ort_scores.loc[len(test_set_ort_scores)] = 0
 
         test_set_ort_scores['ENROLID'][line_counter] = current_enrolid
@@ -245,7 +254,7 @@ test_set_ort_scores['ort_score'] = score_term_1 + score_term_2 + score_term_3 + 
 
 test_set_ort_scores.loc[test_set_ort_scores['ort_score'] >= 3, 'predicted_label'] = 1
 
-test_set_ort_scores.to_csv('ort_tool/test_set_ort_scores.csv', index=False)
+test_set_ort_scores.to_csv('ort_tool/test_set_ort_scores_'+str(imb_ratio)+str(compute_for_imb)+'.csv', index=False)
 # pdb.set_trace()
 # Calculating the performance
 tp=0
@@ -306,7 +315,7 @@ fpr_ort, tpr_ort, threshold_ort = metrics.roc_curve(y_true = test_set_ort_scores
 roc_auc_ort = metrics.auc(fpr_ort, tpr_ort)
 test_auc_ort=metrics.roc_auc_score(test_set_ort_scores['grand_truth_label'].values.tolist(), test_set_ort_scores['ort_score_sigmoid'])   
 
-with open('ort_tool/ort_tool_test_results.csv','w') as ort_res_file:
+with open('ort_tool/ort_tool_test_results'+str(imb_ratio)+str(compute_for_imb)+'.csv','w') as ort_res_file:
     ort_res_file.write('Accuract, Precision, Recall, F1, AUC, TP, TN, FP, FN\n')
     ort_res_file.write(str(accuracy))
     ort_res_file.write(',')
@@ -327,9 +336,13 @@ with open('ort_tool/ort_tool_test_results.csv','w') as ort_res_file:
     ort_res_file.write(str(fn))
     ort_res_file.write('\n')  
 
+if compute_for_imb == True:
+    softmax_mupod = pd.read_csv('results/MUPOD/restoring_best_model__softmax_test_123456__1_to_'+str(imb_ratio)+'.csv', header=None)
+    test_mupod_meds = pd.read_csv('outputs/test_meds_represented_1_to_'+str(imb_ratio)+'.csv')
+else:    
+    softmax_mupod = pd.read_csv('results/MUPOD/restoring_best_model__softmax_test_123456.csv', header=None)
+    test_mupod_meds = pd.read_csv('outputs/test_meds_represented.csv', header=None)
 
-softmax_mupod = pd.read_csv('results/MUPOD/restoring_best_model__softmax_test_123456.csv', header=None)
-test_mupod_meds = pd.read_csv('outputs/test_meds_represented.csv', header=None)
 test_labels_mupod = test_mupod_meds.iloc[:,-5:-3]
 fpr_mupod, tpr_mupod, threshold_mupod = metrics.roc_curve(test_labels_mupod.iloc[:,0], softmax_mupod.iloc[:,0])
 roc_auc_mupod = metrics.auc(fpr_mupod, tpr_mupod)
@@ -338,16 +351,24 @@ roc_auc_mupod = metrics.auc(fpr_mupod, tpr_mupod)
 
 
 # Single stream transformer
-test_data_single_trans = pd.read_csv('outputs/test_meds_diags_procs_demogs_represented.csv', header=None)
+if compute_for_imb == True:
+    test_data_single_trans = pd.read_csv('outputs/test_meds_diags_procs_demogs_represented_1_to_'+str(imb_ratio)+'.csv')
+    softmax_single_str = pd.read_csv('results/single_stream_transformer/restoring_best_signlestreamT_model_predictions_testing_soft_3000_1_to_'+str(imb_ratio)+'.csv', header=None, delimiter=' ')
+else:    
+    test_data_single_trans = pd.read_csv('outputs/test_meds_diags_procs_demogs_represented.csv', header=None)
+    softmax_single_str = pd.read_csv('results/single_stream_transformer/restoring_best_signlestreamT_model_predictions_testing_soft_3000.csv', header=None, delimiter=' ')
 test_labels_single_str= test_data_single_trans.iloc[:,-5:-3]
-softmax_single_str = pd.read_csv('results/single_stream_transformer/restoring_best_signlestreamT_model_predictions_testing_soft_3000.csv', header=None, delimiter=' ')
 fpr_single_str, tpr_single_str, threshold_single_str = metrics.roc_curve(test_labels_single_str.iloc[:,0], softmax_single_str.iloc[:,0])
 roc_auc_single_str = metrics.auc(fpr_single_str, tpr_single_str)
 # test_auc_single_str=metrics.roc_auc_score(test_labels_single_str.iloc[:,0], softmax_single_str.iloc[:,0])   
 
 # Single stream LSTM
-test_data_single_lstm = pd.read_csv('outputs/test_demographics_shuffled.csv')
-softmax_single_lstm = pd.read_csv('results/LSTM_single_stream/softmax_predictions_lstm_single_stream_using_saved_model.csv', header=None)
+if compute_for_imb == True:
+    test_data_single_lstm = pd.read_csv('outputs/test_demographics_shuffled_1_to_'+str(imb_ratio)+'.csv')
+    softmax_single_lstm = pd.read_csv('results/LSTM_single_stream/softmax_predictions_lstm_single_stream_using_saved_model_1_to_'+str(imb_ratio)+'.csv', header=None)
+else:    
+    test_data_single_lstm = pd.read_csv('outputs/test_demographics_shuffled.csv')
+    softmax_single_lstm = pd.read_csv('results/LSTM_single_stream/softmax_predictions_lstm_single_stream_using_saved_model.csv', header=None)
 fpr_single_lstm, tpr_single_lstm, threshold_single_lstm = metrics.roc_curve(test_data_single_lstm.iloc[:,-1], softmax_single_lstm.iloc[:,0])
 roc_auc_single_lstm = metrics.auc(fpr_single_lstm, tpr_single_lstm)
 # test_auc_single_lstm=metrics.roc_auc_score(test_data_single_lstm.iloc[:,-1], softmax_single_lstm.iloc[:,0])   
@@ -364,7 +385,7 @@ plt.xlim([0, 1])
 plt.ylim([0, 1])
 plt.ylabel('True Positive Rate')
 plt.xlabel('False Positive Rate')
-plt.savefig('ort_tool/roc_ort.png', dpi=300)
+plt.savefig('ort_tool/roc_ort'+str(imb_ratio)+str(compute_for_imb)+'.png', dpi=300)
 print('test')
 
 
