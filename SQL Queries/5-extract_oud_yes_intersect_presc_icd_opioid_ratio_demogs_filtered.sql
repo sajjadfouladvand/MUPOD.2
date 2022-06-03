@@ -1,4 +1,5 @@
-/****** Script for SelectTopNRows command from SSMS  ******/
+-- We filtered the data and only include patients with at least 3 prescriptions for Opioid medications (in three different months).
+
 USE usr_sfouladvand;
 
 DROP TABLE IF EXISTS oud_yes_icd_presc_based_opioid_ratio_demogs_filtered3;
