@@ -1,3 +1,7 @@
+-- This query creates a view of OUD-no medication (prescription) records.
+-- Note, because the resulted tables are too large we create views and then use the MS SQL Server to export these views into csv files.
+
+
 --DROP VIEW IF EXISTS oud_no_icd_presc_based_prescriptions_view;
 
 --ALTER
