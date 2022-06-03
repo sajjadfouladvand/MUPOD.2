@@ -1,3 +1,5 @@
+-- This query extract demographic features for OUD-no cohort
+
 --DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_yes_icd_presc_based_demographics];
 USE usr_sfouladvand;
 
