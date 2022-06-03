@@ -1,3 +1,5 @@
+-- This query unions the results from query 1 (that find OUD patients based on ICD codes) and query 2 (that finds OUD patients based on Buprenorphine prescription)
+
 DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_yes_enrolids_based_on_ICD_and_presc];
 
 
