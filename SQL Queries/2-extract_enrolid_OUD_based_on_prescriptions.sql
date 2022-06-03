@@ -1,4 +1,7 @@
--- THIS QUERY FINDS OUD PATINETS BY LOOKING INTO THEIR PRESCRIPTIONS. 
+-- In this work we identify OUD patients by 1) ICD diagnosis codes for OUD, and 2) if patients have been on Buprenorphine. 
+-- This query detects patients who have been prescribed Buprenorphine at least once.
+
+
 USE usr_sfouladvand;
 
 DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_yes_enrolids_based_on_prescriptions];
