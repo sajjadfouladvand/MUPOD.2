@@ -1,3 +1,5 @@
+-- This query creates a view of OUD-no demographic records.
+
 --DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_no_icd_presc_based_demographics];
 
 -- ALTER
