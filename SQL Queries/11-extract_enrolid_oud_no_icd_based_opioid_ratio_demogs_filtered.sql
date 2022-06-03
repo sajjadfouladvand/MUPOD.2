@@ -1,4 +1,6 @@
-/****** Script for SelectTopNRows command from SSMS  ******/
+-- This query exclude OUD-no patients with less than 3 Opioid prescriptions.
+
+
 DROP TABLE IF EXISTS oud_no_icd_presc_based_opioid_ratio_demogs_filtered3
 SELECT [ENROLID]
       ,[num_pos]
