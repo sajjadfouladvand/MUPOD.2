@@ -1,5 +1,10 @@
--- This code create a table including all ENROLIDs in oud-yes-95-no as well as a column
--- which shows the ratio if patients visits which include opioid (65) meds
+-- This script extract some demographic information for the OUD cohort. 
+-- The result of this query will be later used to match cases and controls.
+-- The result shows patients ID, number of months in which they had Opioid prescriptions (other than BUprenorphine) 
+-- and number of month with no Opioid prescriptions. 
+-- and the ratio of the previous two metrics 
+-- Patient's sex and the decade that they were born in (for matching purpose).
+-- Note, TCGPI with the first two digits of 65 is an Opioid medication. And 65200010 and 65100050 are excluded because they are Buprenorphine.
 
 USE usr_sfouladvand;
 
