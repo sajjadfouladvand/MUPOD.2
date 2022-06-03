@@ -1,3 +1,6 @@
+-- This query extracts diagnosis records for the OUD cohort. 
+-- oud_yes_icd_presc_based_diagnoses includes OUD patients IDs and we join it with the ENCOUNTER_DIAGNOSIS table which contain diagnosis records. 
+
 --DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_yes_icd_presc_based_diagnoses];
 USE usr_sfouladvand;
 GO
