@@ -1,5 +1,7 @@
--- THIS QUERY FIND THE DATE FOR THE FIRST AND LAST RECORD OF PATIENTS IN OUD-NO COHORT.
--- It also exclude patinets who have data for less than equal to 356 days
+-- This query extracts some metadata for OUD-no cohort for matching purposes.
+-- This query extracts first and last record dates for all OUD-no patients.
+-- It also exclude patinets who have data availability for less than or equal to 356 days
+
 USE usr_sfouladvand;
 
 DROP TABLE IF EXISTS oud_no_enrolid_and_date_range;
