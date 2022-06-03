@@ -5,6 +5,7 @@
 -- and the ratio of the previous two metrics 
 -- Patient's sex and the decade that they were born in (for matching purpose).
 -- Note, TCGPI with the first two digits of 65 is an Opioid medication. And 65200010 and 65100050 are excluded because they are Buprenorphine.
+-- Note, it only consider Opioid prescriptions outside of a prediction window of 180 days.
 
 USE usr_sfouladvand;
 
