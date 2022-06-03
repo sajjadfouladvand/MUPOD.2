@@ -1,3 +1,6 @@
+-- This query finds all patients who have at least one ICD diagnosis of OUD and their first diagnosis date. 
+-- The result is a table with two columns one representing OUD patients IDs and the other their OUD diagnosis date.
+
 DROP TABLE IF EXISTS  [usr_sfouladvand].[dbo].[oud_yes_enrolids_based_on_ICD];
 
 SELECT ED.ENROLID, MIN(ED.SVCDATE) AS diagnoses_date
