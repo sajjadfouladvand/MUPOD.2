@@ -1,5 +1,15 @@
 
--- run time = 
+-- This query extract some demographic and metadata information for OUD-no patients for case control matching and inclusion exclusion criteria.
+-- The result include:
+-- patient's ID
+-- NUmber of months in which they have been prescribed with an Opioid (other than Buprenorphine).
+-- Note, it only consider Opioid prescriptions outside of a prediction window of 180 days.
+-- Number of months in which they have been not prescribed with any Opioid.
+-- Patient's sex
+-- The decade that the patient were born in.
+
+
+
 USE usr_sfouladvand;
 
 DROP TABLE IF EXISTS oud_no_icd_presc_based_opioid_ratio_demogs;
