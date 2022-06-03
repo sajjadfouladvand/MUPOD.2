@@ -1,6 +1,7 @@
 -- This query extracts patients who:
--- 1) have never been diagnosed with any OUD ICD diagnoses codes
--- 2) Have never been prescribed with Bup. or Met.
+-- have been prescribed with Opioid medications at least once
+-- have never been diagnosed with any OUD ICD diagnoses codes
+-- Have never been prescribed with Bup. or Met.
 
 use usr_sfouladvand;
 -- 145216721
